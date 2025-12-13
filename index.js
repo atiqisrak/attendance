@@ -526,6 +526,13 @@ app.get("/api/school-id", (req, res) => {
   });
 });
 
+// Get device connection status endpoint
+app.get("/api/device-status", (req, res) => {
+  res.json({
+    device_connected: DEVICE_CONNECTED,
+  });
+});
+
 // Test endpoint for virtual form submissions
 app.post("/api/test-attendance", async (req, res) => {
   try {

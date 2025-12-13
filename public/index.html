@@ -5,713 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attendance Monitor - Real-time Dashboard</title>
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
-      }
-
-      .container {
-        max-width: 1400px;
-        margin: 0 auto;
-      }
-
-      .header {
-        background: white;
-        padding: 25px 30px;
-        border-radius: 16px;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 15px;
-      }
-
-      .header-left {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-      }
-
-      .header h1 {
-        color: #1f2937;
-        font-size: 28px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .header-right {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        flex-wrap: wrap;
-      }
-
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      .status-badge.connected {
-        background: #d1fae5;
-        color: #065f46;
-      }
-
-      .status-badge.disconnected {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-
-      .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-      }
-
-      .status-badge.connected .status-dot {
-        background: #10b981;
-      }
-
-      .status-badge.disconnected .status-dot {
-        background: #ef4444;
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
-
-      .device-status {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 500;
-        background: #f3f4f6;
-        color: #4b5563;
-      }
-
-      .device-status.connected {
-        background: #dbeafe;
-        color: #1e40af;
-      }
-
-      .device-status.disconnected {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-
-      .controls {
-        background: white;
-        padding: 20px;
-        border-radius: 16px;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-
-      .search-box {
-        flex: 1;
-        min-width: 200px;
-        position: relative;
-      }
-
-      .search-box input {
-        width: 100%;
-        padding: 12px 16px 12px 40px;
-        border: 2px solid #e5e7eb;
-        border-radius: 10px;
-        font-size: 14px;
-        transition: all 0.3s;
-      }
-
-      .search-box input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-      }
-
-      .search-icon {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-        width: 20px;
-        height: 20px;
-      }
-
-      .filter-buttons {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .filter-btn {
-        padding: 10px 20px;
-        border: 2px solid #e5e7eb;
-        background: white;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        color: #6b7280;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-
-      .filter-btn:hover {
-        border-color: #667eea;
-        color: #667eea;
-      }
-
-      .filter-btn.active {
-        background: #667eea;
-        color: white;
-        border-color: #667eea;
-      }
-
-      .stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-        margin-bottom: 25px;
-      }
-
-      .stat-card {
-        background: white;
-        padding: 25px;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.3s, box-shadow 0.3s;
-      }
-
-      .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-      }
-
-      .stat-card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-      }
-
-      .stat-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-      }
-
-      .stat-card h3 {
-        color: #6b7280;
-        font-size: 13px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .stat-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-      }
-
-      .stat-card .value {
-        color: #1f2937;
-        font-size: 36px;
-        font-weight: 700;
-        margin-bottom: 5px;
-      }
-
-      .stat-card .sub-value {
-        color: #9ca3af;
-        font-size: 12px;
-      }
-
-      .data-container {
-        background: white;
-        border-radius: 16px;
-        padding: 25px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        max-height: 650px;
-        overflow-y: auto;
-      }
-
-      .data-container::-webkit-scrollbar {
-        width: 8px;
-      }
-
-      .data-container::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 10px;
-      }
-
-      .data-container::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 10px;
-      }
-
-      .data-container::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-
-      .data-header {
-        display: grid;
-        grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
-        gap: 20px;
-        padding: 18px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 12px;
-        margin-bottom: 15px;
-        font-weight: 600;
-        color: white;
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .data-item {
-        display: grid;
-        grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
-        gap: 20px;
-        padding: 18px;
-        border-bottom: 1px solid #e5e7eb;
-        transition: all 0.3s;
-        border-radius: 8px;
-        margin-bottom: 8px;
-      }
-
-      .data-item:hover {
-        background: #f9fafb;
-        transform: translateX(5px);
-      }
-
-      .data-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-      }
-
-      .new-event {
-        animation: slideIn 0.4s ease-out;
-        background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 100%) !important;
-        border-left: 4px solid #10b981;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-      }
-
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateX(-30px) scale(0.95);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0) scale(1);
-        }
-      }
-
-      .student-id {
-        font-weight: 700;
-        color: #667eea;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .student-id::before {
-        content: "👤";
-        font-size: 18px;
-      }
-
-      .time {
-        color: #4b5563;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .time-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        background: #f3f4f6;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #374151;
-      }
-
-      .time-badge.in-time {
-        background: #dbeafe;
-        color: #1e40af;
-      }
-
-      .time-badge.out-time {
-        background: #fef3c7;
-        color: #92400e;
-      }
-
-      .date-badge {
-        padding: 6px 12px;
-        background: #f3f4f6;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #6b7280;
-        text-align: center;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 80px 20px;
-        color: #9ca3af;
-      }
-
-      .empty-state svg {
-        width: 80px;
-        height: 80px;
-        margin-bottom: 20px;
-        opacity: 0.3;
-      }
-
-      .empty-state p {
-        font-size: 16px;
-        font-weight: 500;
-      }
-
-      .live-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
-        background: #fee2e2;
-        color: #991b1b;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        margin-left: 10px;
-      }
-
-      .live-indicator.active {
-        background: #d1fae5;
-        color: #065f46;
-      }
-
-      .live-indicator::before {
-        content: "●";
-        animation: blink 1.5s infinite;
-      }
-
-      @keyframes blink {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.3;
-        }
-      }
-
-      @media (max-width: 768px) {
-        .header {
-          flex-direction: column;
-          text-align: center;
-        }
-
-        .header-left,
-        .header-right {
-          width: 100%;
-          justify-content: center;
-        }
-
-        .data-header,
-        .data-item {
-          grid-template-columns: 1fr;
-          gap: 12px;
-        }
-
-        .data-header {
-          display: none;
-        }
-
-        .data-item {
-          padding: 15px;
-          border-left: 4px solid #667eea;
-        }
-
-        .stat-card .value {
-          font-size: 28px;
-        }
-
-        .data-container {
-          max-height: 500px;
-          padding: 15px;
-        }
-
-        .controls {
-          flex-direction: column;
-        }
-
-        .search-box {
-          width: 100%;
-        }
-      }
-
-      @media (max-width: 480px) {
-        body {
-          padding: 10px;
-        }
-
-        .header h1 {
-          font-size: 22px;
-        }
-
-        .stats {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .test-form-container {
-        background: white;
-        border-radius: 16px;
-        padding: 25px;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      }
-
-      .test-form-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e5e7eb;
-        flex-wrap: wrap;
-        gap: 15px;
-      }
-
-      .quick-fill-buttons {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .btn-quick {
-        padding: 8px 16px;
-        border: 2px solid #667eea;
-        background: white;
-        color: #667eea;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-
-      .btn-quick:hover {
-        background: #667eea;
-        color: white;
-      }
-
-      .school-id-info {
-        padding: 10px 15px;
-        background: #f0f9ff;
-        border: 1px solid #bae6fd;
-        border-radius: 8px;
-        color: #0369a1;
-        font-size: 13px;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .test-form-header h2 {
-        color: #1f2937;
-        font-size: 20px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .test-form {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .form-group.full-width {
-        grid-column: 1 / -1;
-      }
-
-      .form-group label {
-        color: #374151;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      .form-group input,
-      .form-group select {
-        padding: 12px 16px;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 14px;
-        transition: all 0.3s;
-        font-family: inherit;
-      }
-
-      .form-group input:focus,
-      .form-group select:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-      }
-
-      .form-group input[type="datetime-local"] {
-        cursor: pointer;
-      }
-
-      .form-actions {
-        grid-column: 1 / -1;
-        display: flex;
-        gap: 15px;
-        justify-content: flex-end;
-        margin-top: 10px;
-      }
-
-      .btn {
-        padding: 12px 24px;
-        border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-      }
-
-      .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      }
-
-      .btn-primary:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .btn-secondary {
-        background: #f3f4f6;
-        color: #374151;
-      }
-
-      .btn-secondary:hover {
-        background: #e5e7eb;
-      }
-
-      .alert {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .alert-success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #10b981;
-      }
-
-      .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #ef4444;
-      }
-
-      .alert-info {
-        background: #dbeafe;
-        color: #1e40af;
-        border: 1px solid #3b82f6;
-      }
-
-      @media (max-width: 768px) {
-        .test-form {
-          grid-template-columns: 1fr;
-        }
-
-        .form-actions {
-          flex-direction: column;
-        }
-
-        .btn {
-          width: 100%;
-          justify-content: center;
-        }
-      }
-    </style>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
       <div class="header">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
         <div class="header-left">
-          <h1>📊 Attendance Monitor</h1>
+          <h1>
+            <i data-lucide="clipboard-list"></i>
+            Attendance Monitor
+          </h1>
           <span id="connectionStatus" class="status-badge disconnected">
             <span class="status-dot"></span>
             <span>Disconnected</span>
@@ -719,120 +26,154 @@
         </div>
         <div class="header-right">
           <div class="device-status" id="deviceStatus">
+            <i data-lucide="cpu"></i>
             Device: Not connected
           </div>
           <span class="live-indicator" id="liveIndicator">Live</span>
         </div>
       </div>
 
-      <div class="test-form-container">
+      <div
+        class="test-form-container"
+        id="testFormContainer"
+        style="display: none"
+      >
         <div class="test-form-header">
-          <h2>🧪 Virtual Test Form</h2>
-          <div class="quick-fill-buttons">
-            <button type="button" class="btn-quick" id="fillStudentCheckIn">
-              Student Check-in
-            </button>
-            <button type="button" class="btn-quick" id="fillStudentCheckOut">
-              Student Check-out
-            </button>
-            <button type="button" class="btn-quick" id="fillStaffCheckIn">
-              Staff Check-in
-            </button>
-            <button type="button" class="btn-quick" id="fillStaffCheckOut">
-              Staff Check-out
+          <h2>
+            <i data-lucide="flask-conical"></i>
+            Virtual Test Form
+          </h2>
+          <div class="test-form-header-actions">
+            <div class="quick-fill-buttons">
+              <button type="button" class="btn-quick" id="fillStudentCheckIn">
+                <i data-lucide="user-plus"></i>
+                Student Check-in
+              </button>
+              <button type="button" class="btn-quick" id="fillStudentCheckOut">
+                <i data-lucide="user-minus"></i>
+                Student Check-out
+              </button>
+              <button type="button" class="btn-quick" id="fillStaffCheckIn">
+                <i data-lucide="briefcase"></i>
+                Staff Check-in
+              </button>
+              <button type="button" class="btn-quick" id="fillStaffCheckOut">
+                <i data-lucide="briefcase"></i>
+                Staff Check-out
+              </button>
+            </div>
+            <button
+              class="btn-collapse"
+              id="toggleForm"
+              aria-label="Toggle form"
+            >
+              <i data-lucide="chevron-up" id="collapseIcon"></i>
             </button>
           </div>
         </div>
-        <div class="school-id-info">
-          <span>ℹ️</span>
-          <span>School ID: <strong id="schoolIdDisplay">Loading...</strong> (from .env)</span>
+        <div class="test-form-content" id="testFormContent">
+          <div class="school-id-info">
+            <i data-lucide="info"></i>
+            <span
+              >School ID: <strong id="schoolIdDisplay">Loading...</strong> (from
+              .env)</span
+            >
+          </div>
+          <div id="formAlert"></div>
+          <form id="testAttendanceForm" class="test-form">
+            <div class="form-group">
+              <label for="testId">
+                <i data-lucide="hash"></i>
+                Record ID *
+              </label>
+              <input
+                type="number"
+                id="testId"
+                name="id"
+                required
+                placeholder="e.g., 12345"
+                min="1"
+              />
+            </div>
+            <div class="form-group">
+              <label for="testUserId">
+                <i data-lucide="user"></i>
+                User ID *
+              </label>
+              <input
+                type="text"
+                id="testUserId"
+                name="user_id"
+                required
+                placeholder="e.g., STU001 or STAFF001"
+              />
+            </div>
+            <div class="form-group">
+              <label for="testTerminalSn">
+                <i data-lucide="terminal"></i>
+                Terminal Serial Number *
+              </label>
+              <input
+                type="text"
+                id="testTerminalSn"
+                name="terminal_sn"
+                required
+                placeholder="e.g., TERM-12345"
+              />
+            </div>
+            <div class="form-group">
+              <label for="testUserName">
+                <i data-lucide="user-circle"></i>
+                User Name *
+              </label>
+              <input
+                type="text"
+                id="testUserName"
+                name="user_name"
+                required
+                placeholder="e.g., John Doe"
+              />
+            </div>
+            <div class="form-group">
+              <label for="testAttTime">
+                <i data-lucide="clock"></i>
+                Attendance Time *
+              </label>
+              <input
+                type="datetime-local"
+                id="testAttTime"
+                name="att_time"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="testRecordType">
+                <i data-lucide="file-text"></i>
+                Record Type *
+              </label>
+              <select id="testRecordType" name="record_type" required>
+                <option value="">Select type</option>
+                <option value="Check-in">Check-in</option>
+                <option value="Check-out">Check-out</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="resetForm">
+                <i data-lucide="rotate-ccw"></i>
+                Reset
+              </button>
+              <button type="submit" class="btn btn-primary" id="submitForm">
+                <i data-lucide="send"></i>
+                Send Test Attendance
+              </button>
+            </div>
+          </form>
         </div>
-        <div id="formAlert"></div>
-        <form id="testAttendanceForm" class="test-form">
-          <div class="form-group">
-            <label for="testId">Record ID *</label>
-            <input
-              type="number"
-              id="testId"
-              name="id"
-              required
-              placeholder="e.g., 12345"
-              min="1"
-            />
-          </div>
-          <div class="form-group">
-            <label for="testUserId">User ID *</label>
-            <input
-              type="text"
-              id="testUserId"
-              name="user_id"
-              required
-              placeholder="e.g., STU001 or STAFF001"
-            />
-          </div>
-          <div class="form-group">
-            <label for="testTerminalSn">Terminal Serial Number *</label>
-            <input
-              type="text"
-              id="testTerminalSn"
-              name="terminal_sn"
-              required
-              placeholder="e.g., TERM-12345"
-            />
-          </div>
-          <div class="form-group">
-            <label for="testUserName">User Name *</label>
-            <input
-              type="text"
-              id="testUserName"
-              name="user_name"
-              required
-              placeholder="e.g., John Doe"
-            />
-          </div>
-          <div class="form-group">
-            <label for="testAttTime">Attendance Time *</label>
-            <input
-              type="datetime-local"
-              id="testAttTime"
-              name="att_time"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="testRecordType">Record Type *</label>
-            <select id="testRecordType" name="record_type" required>
-              <option value="">Select type</option>
-              <option value="Check-in">Check-in</option>
-              <option value="Check-out">Check-out</option>
-            </select>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" id="resetForm">
-              Reset
-            </button>
-            <button type="submit" class="btn btn-primary" id="submitForm">
-              Send Test Attendance
-            </button>
-          </div>
-        </form>
       </div>
 
       <div class="controls">
         <div class="search-box">
-          <svg
-            class="search-icon"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            ></path>
-          </svg>
+          <i data-lucide="search" class="search-icon"></i>
           <input
             type="text"
             id="searchInput"
@@ -840,9 +181,18 @@
           />
         </div>
         <div class="filter-buttons">
-          <button class="filter-btn active" data-filter="all">All</button>
-          <button class="filter-btn" data-filter="today">Today</button>
-          <button class="filter-btn" data-filter="recent">Recent</button>
+          <button class="filter-btn active" data-filter="all">
+            <i data-lucide="list"></i>
+            All
+          </button>
+          <button class="filter-btn" data-filter="today">
+            <i data-lucide="calendar"></i>
+            Today
+          </button>
+          <button class="filter-btn" data-filter="recent">
+            <i data-lucide="clock"></i>
+            Recent
+          </button>
         </div>
       </div>
 
@@ -850,7 +200,9 @@
         <div class="stat-card">
           <div class="stat-card-header">
             <h3>Total Records</h3>
-            <div class="stat-icon" style="background: #dbeafe">📋</div>
+            <div class="stat-icon">
+              <i data-lucide="file-text"></i>
+            </div>
           </div>
           <div class="value" id="totalRecords">0</div>
           <div class="sub-value">All time attendance</div>
@@ -858,7 +210,9 @@
         <div class="stat-card">
           <div class="stat-card-header">
             <h3>Unique Students</h3>
-            <div class="stat-icon" style="background: #fef3c7">👥</div>
+            <div class="stat-icon">
+              <i data-lucide="users"></i>
+            </div>
           </div>
           <div class="value" id="uniqueStudents">0</div>
           <div class="sub-value">Registered students</div>
@@ -866,7 +220,9 @@
         <div class="stat-card">
           <div class="stat-card-header">
             <h3>Today's Records</h3>
-            <div class="stat-icon" style="background: #d1fae5">📅</div>
+            <div class="stat-icon">
+              <i data-lucide="calendar-days"></i>
+            </div>
           </div>
           <div class="value" id="todayRecords">0</div>
           <div class="sub-value" id="todayDate"></div>
@@ -874,7 +230,9 @@
         <div class="stat-card">
           <div class="stat-card-header">
             <h3>Last Update</h3>
-            <div class="stat-icon" style="background: #e0e7ff">🕐</div>
+            <div class="stat-icon">
+              <i data-lucide="activity"></i>
+            </div>
           </div>
           <div class="value" id="lastUpdate" style="font-size: 24px">
             --:--:--
@@ -886,587 +244,19 @@
       <div class="data-container">
         <div id="dataList">
           <div class="empty-state">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
+            <i data-lucide="file-x" style="width: 64px; height: 64px"></i>
             <p>Waiting for attendance data...</p>
           </div>
         </div>
       </div>
     </div>
 
+    <script src="script.js"></script>
     <script>
-      const socket = io();
-      const connectionStatus = document.getElementById("connectionStatus");
-      const deviceStatus = document.getElementById("deviceStatus");
-      const liveIndicator = document.getElementById("liveIndicator");
-      const dataList = document.getElementById("dataList");
-      const totalRecords = document.getElementById("totalRecords");
-      const lastUpdate = document.getElementById("lastUpdate");
-      const uniqueStudents = document.getElementById("uniqueStudents");
-      const todayRecords = document.getElementById("todayRecords");
-      const todayDate = document.getElementById("todayDate");
-      const searchInput = document.getElementById("searchInput");
-      const filterButtons = document.querySelectorAll(".filter-btn");
-
-      let attendanceRecords = [];
-      let uniqueStudentIds = new Set();
-      let currentFilter = "all";
-      let searchQuery = "";
-
-      // Set today's date
-      const today = new Date();
-      todayDate.textContent = today.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-
-      function updateStats() {
-        totalRecords.textContent = attendanceRecords.length;
-        uniqueStudents.textContent = uniqueStudentIds.size;
-
-        const todayStr = new Date().toISOString().split("T")[0];
-        const todayCount = attendanceRecords.filter(
-          (r) => r.date === todayStr
-        ).length;
-        todayRecords.textContent = todayCount;
-
-        const now = new Date();
-        lastUpdate.textContent = now.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        });
+      // Initialize Lucide icons on page load
+      if (typeof lucide !== "undefined") {
+        lucide.createIcons();
       }
-
-      function formatTime(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        });
-      }
-
-      function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-      }
-
-      function getFilteredRecords() {
-        let filtered = [...attendanceRecords];
-
-        // Apply search filter
-        if (searchQuery) {
-          filtered = filtered.filter((item) =>
-            item.student_id?.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        }
-
-        // Apply time filter
-        const now = new Date();
-        const todayStr = now.toISOString().split("T")[0];
-
-        if (currentFilter === "today") {
-          filtered = filtered.filter((item) => item.date === todayStr);
-        } else if (currentFilter === "recent") {
-          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          filtered = filtered.filter((item) => {
-            const recordDate = new Date(item.updated_at || item.created_at);
-            return recordDate >= oneDayAgo;
-          });
-        }
-
-        return filtered;
-      }
-
-      function renderAttendanceList() {
-        const filtered = getFilteredRecords();
-
-        if (filtered.length === 0) {
-          dataList.innerHTML = `
-            <div class="empty-state">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <p>${
-                searchQuery || currentFilter !== "all"
-                  ? "No records match your filter"
-                  : "Waiting for attendance data..."
-              }</p>
-            </div>
-          `;
-          return;
-        }
-
-        const sortedRecords = filtered.sort((a, b) => {
-          return (
-            new Date(b.updated_at || b.created_at) -
-            new Date(a.updated_at || a.created_at)
-          );
-        });
-
-        dataList.innerHTML = `
-          <div class="data-header">
-            <div>Student ID</div>
-            <div>In Time</div>
-            <div>Out Time</div>
-            <div>Date</div>
-          </div>
-          ${sortedRecords
-            .map((item) => {
-              const isToday =
-                item.date === new Date().toISOString().split("T")[0];
-              return `
-              <div class="data-item" data-id="${item.student_id}-${item.date}">
-                <div class="student-id">${item.student_id || "N/A"}</div>
-                <div class="time">
-                  <span class="time-badge in-time">🕐 ${formatTime(
-                    item.in_time
-                  )}</span>
-                </div>
-                <div class="time">
-                  <span class="time-badge out-time">🕐 ${formatTime(
-                    item.out_time
-                  )}</span>
-                </div>
-                <div class="date-badge">${formatDate(item.date)}${
-                isToday ? " (Today)" : ""
-              }</div>
-              </div>
-            `;
-            })
-            .join("")}
-        `;
-      }
-
-      function addOrUpdateRecord(newRecord) {
-        const recordKey = `${newRecord.student_id}-${newRecord.date}`;
-        const existingIndex = attendanceRecords.findIndex(
-          (r) =>
-            r.student_id === newRecord.student_id && r.date === newRecord.date
-        );
-
-        if (existingIndex >= 0) {
-          attendanceRecords[existingIndex] = newRecord;
-        } else {
-          attendanceRecords.unshift(newRecord);
-        }
-
-        uniqueStudentIds.add(newRecord.student_id);
-        updateStats();
-        renderAttendanceList();
-
-        const recordElement = document.querySelector(
-          `[data-id="${recordKey}"]`
-        );
-        if (recordElement) {
-          recordElement.classList.add("new-event");
-          setTimeout(() => {
-            recordElement.classList.remove("new-event");
-          }, 3000);
-        }
-      }
-
-      // Search functionality
-      searchInput.addEventListener("input", (e) => {
-        searchQuery = e.target.value;
-        renderAttendanceList();
-      });
-
-      // Filter functionality
-      filterButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          filterButtons.forEach((b) => b.classList.remove("active"));
-          btn.classList.add("active");
-          currentFilter = btn.dataset.filter;
-          renderAttendanceList();
-        });
-      });
-
-      // Socket events
-      socket.on("connect", () => {
-        connectionStatus.innerHTML =
-          '<span class="status-dot"></span><span>Connected</span>';
-        connectionStatus.className = "status-badge connected";
-        liveIndicator.classList.add("active");
-      });
-
-      socket.on("disconnect", () => {
-        connectionStatus.innerHTML =
-          '<span class="status-dot"></span><span>Disconnected</span>';
-        connectionStatus.className = "status-badge disconnected";
-        liveIndicator.classList.remove("active");
-      });
-
-      socket.on("deviceStatus", (status) => {
-        if (status.connected) {
-          deviceStatus.textContent = `Device: ${status.ip} (${
-            status.type?.toUpperCase() || "TCP"
-          })`;
-          deviceStatus.className = "device-status connected";
-        } else {
-          deviceStatus.textContent = `Device: Disconnected${
-            status.error ? " - " + status.error : ""
-          }`;
-          deviceStatus.className = "device-status disconnected";
-        }
-      });
-
-      socket.on("attendanceEvent", (data) => {
-        if (data) {
-          addOrUpdateRecord(data);
-        }
-      });
-
-      socket.on("attendanceData", (data) => {
-        if (data && Array.isArray(data) && data.length > 0) {
-          attendanceRecords = [];
-          uniqueStudentIds.clear();
-          data.forEach((item) => {
-            if (item.student_id) {
-              uniqueStudentIds.add(item.student_id);
-              attendanceRecords.push(item);
-            }
-          });
-          updateStats();
-          renderAttendanceList();
-        }
-      });
-
-      // IndexedDB Setup
-      const DB_NAME = "attendanceLogs";
-      const DB_VERSION = 1;
-      const STORE_NAME = "logs";
-
-      function openDB() {
-        return new Promise((resolve, reject) => {
-          const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve(request.result);
-
-          request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-              const objectStore = db.createObjectStore(STORE_NAME, {
-                keyPath: "id",
-                autoIncrement: true,
-              });
-              objectStore.createIndex("user_id", "user_id", { unique: false });
-              objectStore.createIndex("date", "date", { unique: false });
-              objectStore.createIndex("timestamp", "timestamp", {
-                unique: false,
-              });
-            }
-          };
-        });
-      }
-
-      async function storeLogInIndexedDB(logData) {
-        try {
-          const db = await openDB();
-          const transaction = db.transaction([STORE_NAME], "readwrite");
-          const store = transaction.objectStore(STORE_NAME);
-
-          const logEntry = {
-            ...logData,
-            timestamp: new Date().toISOString(),
-            date: new Date(logData.att_time).toISOString().split("T")[0],
-          };
-
-          await store.add(logEntry);
-          console.log("Log stored in IndexedDB:", logEntry);
-          return true;
-        } catch (error) {
-          console.error("Error storing log in IndexedDB:", error);
-          return false;
-        }
-      }
-
-      async function loadLogsFromIndexedDB() {
-        try {
-          const db = await openDB();
-          const transaction = db.transaction([STORE_NAME], "readonly");
-          const store = transaction.objectStore(STORE_NAME);
-          const index = store.index("timestamp");
-
-          return new Promise((resolve, reject) => {
-            const request = index.openCursor(null, "prev");
-            const logs = [];
-
-            request.onsuccess = (event) => {
-              const cursor = event.target.result;
-              if (cursor) {
-                logs.push(cursor.value);
-                cursor.continue();
-              } else {
-                resolve(logs);
-              }
-            };
-
-            request.onerror = () => reject(request.error);
-          });
-        } catch (error) {
-          console.error("Error loading logs from IndexedDB:", error);
-          return [];
-        }
-      }
-
-      async function loadIndexedDBLogs() {
-        const logs = await loadLogsFromIndexedDB();
-        if (logs.length > 0) {
-          // Group logs by user_id and date
-          const recordsMap = new Map();
-
-          logs.forEach((log) => {
-            const key = `${log.user_id}-${log.date}`;
-            if (!recordsMap.has(key)) {
-              recordsMap.set(key, {
-                student_id: log.user_id,
-                in_time: null,
-                out_time: null,
-                date: log.date,
-                attendance_type: "machine",
-                school_code: log.school_id?.toString() || "1",
-                created_at: log.timestamp,
-                updated_at: log.timestamp,
-              });
-            }
-
-            const record = recordsMap.get(key);
-            if (log.record_type === "Check-in") {
-              record.in_time = log.att_time;
-              if (new Date(log.timestamp) < new Date(record.created_at)) {
-                record.created_at = log.timestamp;
-              }
-            } else if (log.record_type === "Check-out") {
-              record.out_time = log.att_time;
-              record.updated_at = log.timestamp;
-            }
-          });
-
-          // Add records to attendanceRecords
-          recordsMap.forEach((record) => {
-            attendanceRecords.unshift(record);
-            uniqueStudentIds.add(record.student_id);
-          });
-
-          updateStats();
-          renderAttendanceList();
-        }
-      }
-
-      // Initialize
-      updateStats();
-      renderAttendanceList();
-      loadIndexedDBLogs();
-
-      // Test Form Handling
-      const testForm = document.getElementById("testAttendanceForm");
-      const formAlert = document.getElementById("formAlert");
-      const submitBtn = document.getElementById("submitForm");
-      const resetBtn = document.getElementById("resetForm");
-
-      function showAlert(message, type = "info") {
-        formAlert.innerHTML = `
-          <div class="alert alert-${type}">
-            <span>${type === "success" ? "✓" : type === "error" ? "✗" : "ℹ"}</span>
-            <span>${message}</span>
-          </div>
-        `;
-        setTimeout(() => {
-          formAlert.innerHTML = "";
-        }, type === "error" ? 5000 : 3000);
-      }
-
-      function formatDateTimeLocal(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-      }
-
-      // Dummy data templates
-      const dummyData = {
-        studentCheckIn: {
-          id: 18204,
-          user_id: "2025004",
-          terminal_sn: "TERM-12345",
-          user_name: "Alice Smith",
-          record_type: "Check-in"
-        },
-        studentCheckOut: {
-          id: 18204,
-          user_id: "2025004",
-          terminal_sn: "TERM-12345",
-          user_name: "Alice Smith",
-          record_type: "Check-out"
-        },
-        staffCheckIn: {
-          id: Math.floor(Math.random() * 100000),
-          user_id: "STAFF001",
-          terminal_sn: "TERM-12345",
-          user_name: "Bob Johnson",
-          record_type: "Check-in"
-        },
-        staffCheckOut: {
-          id: Math.floor(Math.random() * 100000),
-          user_id: "STAFF001",
-          terminal_sn: "TERM-12345",
-          user_name: "Bob Johnson",
-          record_type: "Check-out"
-        }
-      };
-
-      function fillForm(data) {
-        document.getElementById("testId").value = data.id;
-        document.getElementById("testUserId").value = data.user_id;
-        document.getElementById("testTerminalSn").value = data.terminal_sn;
-        document.getElementById("testUserName").value = data.user_name;
-        document.getElementById("testRecordType").value = data.record_type;
-        const now = new Date();
-        document.getElementById("testAttTime").value = formatDateTimeLocal(now);
-      }
-
-      // Set default values
-      function setDefaultValues() {
-        fillForm(dummyData.studentCheckIn);
-      }
-
-      // Fetch school ID from server
-      let currentSchoolId = 1;
-      async function fetchSchoolId() {
-        try {
-          const response = await fetch("/api/school-id");
-          const data = await response.json();
-          if (data.school_id) {
-            currentSchoolId = data.school_id;
-            document.getElementById("schoolIdDisplay").textContent = data.school_id;
-          }
-        } catch (error) {
-          document.getElementById("schoolIdDisplay").textContent = "N/A";
-        }
-      }
-
-      // Quick fill button handlers
-      document.getElementById("fillStudentCheckIn").addEventListener("click", () => {
-        fillForm(dummyData.studentCheckIn);
-      });
-
-      document.getElementById("fillStudentCheckOut").addEventListener("click", () => {
-        fillForm(dummyData.studentCheckOut);
-      });
-
-      document.getElementById("fillStaffCheckIn").addEventListener("click", () => {
-        fillForm(dummyData.staffCheckIn);
-      });
-
-      document.getElementById("fillStaffCheckOut").addEventListener("click", () => {
-        fillForm(dummyData.staffCheckOut);
-      });
-
-      setDefaultValues();
-      fetchSchoolId();
-
-      testForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(testForm);
-        const data = {};
-        
-        // Convert form data to object
-        for (const [key, value] of formData.entries()) {
-          data[key] = value;
-        }
-
-        // Convert datetime-local to required format (YYYY-MM-DD HH:mm:ss)
-        if (data.att_time) {
-          const date = new Date(data.att_time);
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const hours = String(date.getHours()).padStart(2, "0");
-          const minutes = String(date.getMinutes()).padStart(2, "0");
-          const seconds = String(date.getSeconds()).padStart(2, "0");
-          data.att_time = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Sending...";
-
-        try {
-          const response = await fetch("/api/test-attendance", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          });
-
-          const result = await response.json();
-
-          if (result.success) {
-            // Store in IndexedDB
-            const logData = {
-              id: parseInt(data.id),
-              user_id: data.user_id,
-              terminal_sn: data.terminal_sn,
-              user_name: data.user_name,
-              att_time: data.att_time,
-              record_type: data.record_type,
-              school_id: currentSchoolId,
-            };
-            await storeLogInIndexedDB(logData);
-
-            showAlert(
-              `Success! ${result.message || "Attendance sent successfully"}`,
-              "success"
-            );
-            testForm.reset();
-            setDefaultValues();
-          } else {
-            showAlert(
-              `Error: ${result.message || "Failed to send attendance"}`,
-              "error"
-            );
-          }
-        } catch (error) {
-          showAlert(`Error: ${error.message || "Network error"}`, "error");
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Send Test Attendance";
-        }
-      });
-
-      // Update dummy data IDs
-      function updateDummyDataIds() {
-        dummyData.studentCheckIn.id = Math.floor(Math.random() * 100000);
-        dummyData.studentCheckOut.id = Math.floor(Math.random() * 100000);
-        dummyData.staffCheckIn.id = Math.floor(Math.random() * 100000);
-        dummyData.staffCheckOut.id = Math.floor(Math.random() * 100000);
-      }
-
-      resetBtn.addEventListener("click", () => {
-        updateDummyDataIds();
-        testForm.reset();
-        setDefaultValues();
-        formAlert.innerHTML = "";
-      });
     </script>
   </body>
 </html>
