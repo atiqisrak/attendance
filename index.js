@@ -15,14 +15,24 @@ const io = socketIo(server);
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static("public"));
 
 // ZKTeco K60 Device Configuration
 // Device Network: IP 192.168.68.104, TCP Port 4370, Gateway 192.168.68.1, Subnet 255.255.255.0
-const DEVICE_IP = process.env.DEVICE_IP || "192.168.68.104";
+const DEVICE_IP = process.env.DEVICE_IP || "192.168.68.199";
 const DEVICE_PORT = parseInt(process.env.DEVICE_PORT || "4370");
 const DEVICE_TIMEOUT = parseInt(process.env.DEVICE_TIMEOUT || "5200");
 const DEVICE_UDP_PORT = parseInt(process.env.DEVICE_UDP_PORT || "5000");
+
+// API Configuration
+const API_BASE_URL =
+  process.env.API_BASE_URL || "https://backend.academichelperbd.xyz";
+const API_VERSION = process.env.API_VERSION || "v1";
+const SCHOOL_ID = parseInt(process.env.SCHOOL_ID || "1");
+const TERMINAL_SN = process.env.TERMINAL_SN || "TERM-12345";
+
+// Device Connection Control
+const DEVICE_CONNECTED = process.env.DEVICE_CONNECTED === "true";
 
 const uri =
   "mongodb+srv://attendances:PzCebmsIIcgv81JE@cluster0.nuouh7o.mongodb.net/attendances?retryWrites=true&w=majority&appName=Cluster0";
@@ -43,7 +53,7 @@ let reconnectTimer = null;
 let dbConnected = false;
 let lastProcessedRecordTime = null;
 let pollingInterval = null;
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY_BASE = 5000;
 const POLLING_INTERVAL = 5000; // Poll every 5 seconds for new records
 
@@ -56,23 +66,26 @@ function formatDateTime(date) {
   )}`;
 }
 
-async function sendAttendanceToAPI(attendanceData) {
+async function sendAttendanceToAPI(apiPayload) {
   try {
-    const { _id, ...dataToSend } = attendanceData;
-    dataToSend.machine_no = dataToSend.machine_no || "0";
-    dataToSend.in_time = formatDateTime(new Date(dataToSend.in_time));
-    dataToSend.out_time = formatDateTime(new Date(dataToSend.out_time));
-
-    const response = await axios.post(
-      "https://academichelperbd.com/api/create-attendance",
-      dataToSend
-    );
-    console.log(response.statusText);
-  } catch (error) {
+    const apiUrl = `${API_BASE_URL}/api/${API_VERSION}/machine-attendance`;
+    const response = await axios.post(apiUrl, apiPayload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     console.log(
+      `API Response: ${response.status} - ${
+        response.data?.message || response.statusText
+      }`
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
       "Error sending attendance to API:",
       error.response?.data || error.message
     );
+    throw error;
   }
 }
 
@@ -88,6 +101,25 @@ async function ensureDbConnection() {
       throw err;
     }
   }
+}
+
+async function getUserNameFromDevice(userId) {
+  try {
+    if (zkDevice && isConnected) {
+      const users = await zkDevice.getUsers();
+      if (users?.data) {
+        const user = users.data.find(
+          (u) => u.uid === userId || u.userId === userId || u.id === userId
+        );
+        if (user) {
+          return user.name || user.userName || null;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not fetch user name for ${userId}:`, err.message);
+  }
+  return null;
 }
 
 async function processAttendanceLog(entry, source = "realtime") {
@@ -109,6 +141,31 @@ async function processAttendanceLog(entry, source = "realtime") {
       date: formattedDate,
     });
 
+    // Determine record type: Check-in if new record, Check-out if updating existing
+    const recordType = !existingRecord ? "Check-in" : "Check-out";
+
+    // Get user name from device or use fallback
+    const userName =
+      entry.userName ||
+      (await getUserNameFromDevice(entry.deviceUserId)) ||
+      entry.deviceUserId;
+
+    // Generate unique ID (using timestamp + user ID hash)
+    const recordId = Math.abs(
+      Date.now().toString().slice(-8) + entry.deviceUserId.toString().slice(-4)
+    ).slice(0, 10);
+
+    // Prepare API payload according to doc.md structure
+    const apiPayload = {
+      id: parseInt(recordId),
+      user_id: entry.deviceUserId.toString(),
+      terminal_sn: TERMINAL_SN,
+      user_name: userName,
+      att_time: formattedTime,
+      record_type: recordType,
+      school_id: SCHOOL_ID,
+    };
+
     let apiData;
     if (!existingRecord) {
       apiData = {
@@ -118,13 +175,14 @@ async function processAttendanceLog(entry, source = "realtime") {
         machine_no: null,
         date: formattedDate,
         attendance_type: "machine",
-        attendance_status: "present",
         school_code: "10106",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       await attendanceCollection.insertOne(apiData);
-      console.log(`[${source}] New attendance record: Student ${entry.deviceUserId} - ${formattedTime}`);
+      console.log(
+        `[${source}] New attendance record: Student ${entry.deviceUserId} - ${formattedTime}`
+      );
     } else {
       apiData = {
         ...existingRecord,
@@ -140,10 +198,13 @@ async function processAttendanceLog(entry, source = "realtime") {
           },
         }
       );
-      console.log(`[${source}] Updated attendance record: Student ${entry.deviceUserId} - ${formattedTime}`);
+      console.log(
+        `[${source}] Updated attendance record: Student ${entry.deviceUserId} - ${formattedTime}`
+      );
     }
 
-    await sendAttendanceToAPI(apiData);
+    // Send to new API endpoint
+    await sendAttendanceToAPI(apiPayload);
     io.emit("attendanceEvent", apiData);
   } catch (err) {
     console.error("Error processing attendance log:", err);
@@ -155,10 +216,12 @@ function handleRealTimeLog(data) {
   console.log("=== Real-time log callback triggered ===");
   console.log("Raw data received:", JSON.stringify(data, null, 2));
   console.log("Data type:", typeof data);
-  console.log("Data keys:", data ? Object.keys(data) : 'null');
+  console.log("Data keys:", data ? Object.keys(data) : "null");
 
   if (!data) {
-    console.warn("Warning: Received null/undefined data in real-time log callback");
+    console.warn(
+      "Warning: Received null/undefined data in real-time log callback"
+    );
     return;
   }
 
@@ -167,8 +230,14 @@ function handleRealTimeLog(data) {
   // decodeRecordRealTimeLog52 returns { userId, attTime }
   const entry = {
     deviceUserId: data.userId || data.deviceUserId || data.uid || data.user_id,
-    recordTime: data.attTime || data.recordTime || data.time || data.timestamp || new Date(),
+    recordTime:
+      data.attTime ||
+      data.recordTime ||
+      data.time ||
+      data.timestamp ||
+      new Date(),
     deviceId: data.deviceId || data.device_id || null,
+    userName: data.userName || data.name || data.user_name || null,
   };
 
   console.log("Processed entry:", entry);
@@ -189,20 +258,20 @@ function handleRealTimeLog(data) {
 
 async function checkNetworkConnectivity() {
   return new Promise((resolve) => {
-    const net = require('net');
+    const net = require("net");
     const socket = new net.Socket();
     const timeout = 3000;
 
     socket.setTimeout(timeout);
-    socket.once('connect', () => {
+    socket.once("connect", () => {
       socket.destroy();
       resolve(true);
     });
-    socket.once('timeout', () => {
+    socket.once("timeout", () => {
       socket.destroy();
       resolve(false);
     });
-    socket.once('error', () => {
+    socket.once("error", () => {
       resolve(false);
     });
 
@@ -219,15 +288,24 @@ async function connectToDevice() {
   reconnectAttempts = 0;
 
   try {
-    console.log(`Connecting to ZKTeco K60 device at ${DEVICE_IP}:${DEVICE_PORT}...`);
+    console.log(
+      `Connecting to ZKTeco K60 device at ${DEVICE_IP}:${DEVICE_PORT}...`
+    );
 
     const canReach = await checkNetworkConnectivity();
     if (!canReach) {
-      console.warn(`Warning: Cannot reach device at ${DEVICE_IP}:${DEVICE_PORT}. Please verify network connectivity.`);
+      console.warn(
+        `Warning: Cannot reach device at ${DEVICE_IP}:${DEVICE_PORT}. Please verify network connectivity.`
+      );
       console.warn(`Device network: 192.168.68.104/24, Gateway: 192.168.68.1`);
     }
 
-    zkDevice = new ZKHLIB(DEVICE_IP, DEVICE_PORT, DEVICE_TIMEOUT, DEVICE_UDP_PORT);
+    zkDevice = new ZKHLIB(
+      DEVICE_IP,
+      DEVICE_PORT,
+      DEVICE_TIMEOUT,
+      DEVICE_UDP_PORT
+    );
 
     const errorHandler = (err) => {
       console.error("Device connection error:", err);
@@ -244,19 +322,27 @@ async function connectToDevice() {
     await zkDevice.createSocket(errorHandler, closeHandler);
 
     const connectionType = zkDevice.connectionType;
-    console.log(`Connected to device via ${connectionType.toUpperCase()} at ${DEVICE_IP}:${DEVICE_PORT}`);
+    console.log(
+      `Connected to device via ${connectionType.toUpperCase()} at ${DEVICE_IP}:${DEVICE_PORT}`
+    );
 
     isConnected = true;
     isConnecting = false;
     reconnectAttempts = 0;
 
-    io.emit("deviceStatus", { connected: true, ip: DEVICE_IP, type: connectionType });
+    io.emit("deviceStatus", {
+      connected: true,
+      ip: DEVICE_IP,
+      type: connectionType,
+    });
 
     console.log("Setting up real-time log monitoring...");
 
     try {
       await zkDevice.getRealTimeLogs(handleRealTimeLog);
-      console.log("Real-time log monitoring started - waiting for attendance events...");
+      console.log(
+        "Real-time log monitoring started - waiting for attendance events..."
+      );
     } catch (err) {
       console.error("Error setting up real-time logs:", err);
     }
@@ -267,32 +353,53 @@ async function connectToDevice() {
         console.log("\n=== Initializing attendance monitoring ===");
         const initialLogs = await zkDevice.getAttendances();
         console.log("✓ Device communication verified");
-        console.log("Total attendance records on device:", initialLogs?.data?.length || 0);
+        console.log(
+          "Total attendance records on device:",
+          initialLogs?.data?.length || 0
+        );
 
         if (initialLogs?.data?.length > 0) {
           // Set last processed time to the most recent record
-          const records = initialLogs.data.sort((a, b) =>
-            new Date(b.recordTime) - new Date(a.recordTime)
+          const records = initialLogs.data.sort(
+            (a, b) => new Date(b.recordTime) - new Date(a.recordTime)
           );
           lastProcessedRecordTime = new Date(records[0].recordTime);
-          console.log("Last processed record time:", lastProcessedRecordTime.toLocaleString());
-          console.log("Sample record structure:", JSON.stringify(records[0], null, 2));
+          console.log(
+            "Last processed record time:",
+            lastProcessedRecordTime.toLocaleString()
+          );
+          console.log(
+            "Sample record structure:",
+            JSON.stringify(records[0], null, 2)
+          );
         }
 
         // Start polling for new records
         startPollingForNewRecords();
-        console.log(`\n✓ Polling started (checking every ${POLLING_INTERVAL / 1000} seconds for new records)`);
-        console.log("Ready to receive attendance data - scan fingerprints on the device");
+        console.log(
+          `\n✓ Polling started (checking every ${
+            POLLING_INTERVAL / 1000
+          } seconds for new records)`
+        );
+        console.log(
+          "Ready to receive attendance data - scan fingerprints on the device"
+        );
       } catch (err) {
         console.error("Initialization failed:", err.message);
       }
     }, 2000);
-
   } catch (err) {
     isConnecting = false;
     isConnected = false;
-    console.error(`Failed to connect to device at ${DEVICE_IP}:${DEVICE_PORT}:`, err.message);
-    io.emit("deviceStatus", { connected: false, ip: DEVICE_IP, error: err.message });
+    console.error(
+      `Failed to connect to device at ${DEVICE_IP}:${DEVICE_PORT}:`,
+      err.message
+    );
+    io.emit("deviceStatus", {
+      connected: false,
+      ip: DEVICE_IP,
+      error: err.message,
+    });
     scheduleReconnect();
   }
 }
@@ -303,13 +410,17 @@ function scheduleReconnect() {
   }
 
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error(`Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Stopping reconnection.`);
+    console.error(
+      `Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Stopping reconnection.`
+    );
     return;
   }
 
   reconnectAttempts++;
   const delay = RECONNECT_DELAY_BASE * Math.pow(2, reconnectAttempts - 1);
-  console.log(`Scheduling reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms...`);
+  console.log(
+    `Scheduling reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms...`
+  );
 
   reconnectTimer = setTimeout(() => {
     if (!isConnected) {
@@ -335,7 +446,7 @@ async function startPollingForNewRecords() {
       }
 
       // Filter for new records (after last processed time)
-      const newRecords = logs.data.filter(record => {
+      const newRecords = logs.data.filter((record) => {
         const recordTime = new Date(record.recordTime);
         return !lastProcessedRecordTime || recordTime > lastProcessedRecordTime;
       });
@@ -344,13 +455,14 @@ async function startPollingForNewRecords() {
         console.log(`\n📊 Found ${newRecords.length} new attendance record(s)`);
 
         // Process new records in order
-        for (const record of newRecords.sort((a, b) =>
-          new Date(a.recordTime) - new Date(b.recordTime)
+        for (const record of newRecords.sort(
+          (a, b) => new Date(a.recordTime) - new Date(b.recordTime)
         )) {
           const entry = {
             deviceUserId: record.deviceUserId,
             recordTime: record.recordTime,
             deviceId: record.ip || null,
+            userName: record.userName || record.name || null,
           };
           await processAttendanceLog(entry, "polling");
         }
@@ -383,8 +495,8 @@ async function disconnectFromDevice() {
   }
 }
 
-process.on('SIGINT', async () => {
-  console.log('\nShutting down...');
+process.on("SIGINT", async () => {
+  console.log("\nShutting down...");
   await disconnectFromDevice();
   if (dbConnected) {
     await client.close();
@@ -393,8 +505,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
-  console.log('\nShutting down...');
+process.on("SIGTERM", async () => {
+  console.log("\nShutting down...");
   await disconnectFromDevice();
   if (dbConnected) {
     await client.close();
@@ -404,11 +516,120 @@ process.on('SIGTERM', async () => {
 });
 
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(__dirname + "/public/index.html");
+});
+
+// Get school ID endpoint
+app.get("/api/school-id", (req, res) => {
+  res.json({
+    school_id: SCHOOL_ID,
+  });
+});
+
+// Test endpoint for virtual form submissions
+app.post("/api/test-attendance", async (req, res) => {
+  try {
+    const { id, user_id, terminal_sn, user_name, att_time, record_type } =
+      req.body;
+
+    // Validate required fields
+    if (
+      !id ||
+      !user_id ||
+      !terminal_sn ||
+      !user_name ||
+      !att_time ||
+      !record_type
+    ) {
+      return res.status(400).json({
+        statusCode: 400,
+        success: false,
+        message: "Missing required fields",
+        data: null,
+      });
+    }
+
+    // Prepare API payload (school_id comes from env)
+    const apiPayload = {
+      id: parseInt(id),
+      user_id: user_id.toString(),
+      terminal_sn: terminal_sn.toString(),
+      user_name: user_name.toString(),
+      att_time: att_time,
+      record_type: record_type,
+      school_id: SCHOOL_ID,
+    };
+
+    // Send to actual API
+    const apiResponse = await sendAttendanceToAPI(apiPayload);
+
+    // Emit real-time update to connected clients
+    if (apiResponse?.data) {
+      const recordDate = new Date(att_time);
+      const formattedDate = recordDate.toISOString().split("T")[0];
+
+      // Format data for frontend display (matching processAttendanceLog format)
+      const frontendData = {
+        student_id: user_id,
+        in_time:
+          record_type === "Check-in"
+            ? att_time
+            : apiResponse.data.in_time || att_time,
+        out_time:
+          record_type === "Check-out"
+            ? att_time
+            : apiResponse.data.out_time || null,
+        date: formattedDate,
+        attendance_type: "machine",
+        school_code: SCHOOL_ID.toString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      io.emit("attendanceEvent", frontendData);
+    }
+
+    res.json({
+      statusCode: 200,
+      success: true,
+      message: "Test attendance sent successfully",
+      data: apiResponse,
+    });
+  } catch (error) {
+    console.error("Error in test attendance endpoint:", error);
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to send test attendance",
+      data: error.response?.data || null,
+    });
+  }
 });
 
 server.listen(port, async () => {
   console.log(`Server is listening on http://localhost:${port}`);
-  console.log(`Device Configuration: ${DEVICE_IP}:${DEVICE_PORT} (Timeout: ${DEVICE_TIMEOUT}ms, UDP: ${DEVICE_UDP_PORT})`);
-  await connectToDevice();
+  console.log(
+    `Device Configuration: ${DEVICE_IP}:${DEVICE_PORT} (Timeout: ${DEVICE_TIMEOUT}ms, UDP: ${DEVICE_UDP_PORT})`
+  );
+  console.log(
+    `Device Connection: ${
+      DEVICE_CONNECTED ? "ENABLED" : "DISABLED (Virtual Testing Mode)"
+    }`
+  );
+
+  if (DEVICE_CONNECTED) {
+    await connectToDevice();
+  } else {
+    console.log(
+      "Running in virtual testing mode. Use the test form to simulate attendance."
+    );
+    io.emit("deviceStatus", {
+      connected: false,
+      ip: DEVICE_IP,
+      mode: "virtual",
+    });
+  }
 });

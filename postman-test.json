@@ -1,0 +1,201 @@
+{
+  "info": {
+    "name": "Machine Attendance API Tests",
+    "description": "Test cases for machine attendance API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Student - First Attendance (Check-in)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12345,\n  \"user_id\": \"101\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"John Doe\",\n  \"att_time\": \"2025-12-13 09:00:00\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "First attendance for a student on a specific date. This will create a new record with in_time and determine status (present/delay) based on scheduled time."
+      },
+      "response": []
+    },
+    {
+      "name": "Student - Second Attendance (Check-out)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12346,\n  \"user_id\": \"101\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"John Doe\",\n  \"att_time\": \"2025-12-13 17:00:00\",\n  \"record_type\": \"Check-out\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Second attendance for the same student on the same date. This will update the existing record with out_time."
+      },
+      "response": []
+    },
+    {
+      "name": "Staff - First Attendance (Check-in)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12347,\n  \"user_id\": \"STF001\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"Jane Smith\",\n  \"att_time\": \"2025-12-13 08:30:00\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "First attendance for a staff member on a specific date. This will create a new record with in_time and determine status (present/delay) based on scheduled time."
+      },
+      "response": []
+    },
+    {
+      "name": "Staff - Second Attendance (Check-out)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12348,\n  \"user_id\": \"STF001\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"Jane Smith\",\n  \"att_time\": \"2025-12-13 16:30:00\",\n  \"record_type\": \"Check-out\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Second attendance for the same staff member on the same date. This will update the existing record with out_time."
+      },
+      "response": []
+    },
+    {
+      "name": "Student - Late Attendance (Delay Status)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12349,\n  \"user_id\": \"102\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"Alice Johnson\",\n  \"att_time\": \"2025-12-13 09:30:00\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Student arriving late. If scheduled time is 09:00 and delay time is 15 minutes, arriving at 09:30 will result in 'delay' status."
+      },
+      "response": []
+    },
+    {
+      "name": "Student - On Time Attendance (Present Status)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12350,\n  \"user_id\": \"103\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"Bob Williams\",\n  \"att_time\": \"2025-12-13 08:55:00\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Student arriving on time or before delay time. This will result in 'present' status."
+      },
+      "response": []
+    },
+    {
+      "name": "Error - Invalid User ID",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12351,\n  \"user_id\": \"INVALID999\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"Invalid User\",\n  \"att_time\": \"2025-12-13 09:00:00\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Test error handling when user_id doesn't exist in students or staffs table."
+      },
+      "response": []
+    },
+    {
+      "name": "Error - Invalid Date Format",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 12352,\n  \"user_id\": \"101\",\n  \"terminal_sn\": \"K60-ABC12345\",\n  \"user_name\": \"John Doe\",\n  \"att_time\": \"invalid-date\",\n  \"record_type\": \"Check-in\",\n  \"school_id\": 7\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/machine-attendance",
+          "host": ["{{base_url}}"],
+          "path": ["machine-attendance"]
+        },
+        "description": "Test error handling when att_time format is invalid."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    }
+  ]
+}
+

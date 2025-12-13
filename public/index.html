@@ -509,6 +509,202 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .test-form-container {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .test-form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e5e7eb;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .quick-fill-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .btn-quick {
+        padding: 8px 16px;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .btn-quick:hover {
+        background: #667eea;
+        color: white;
+      }
+
+      .school-id-info {
+        padding: 10px 15px;
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        color: #0369a1;
+        font-size: 13px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .test-form-header h2 {
+        color: #1f2937;
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .test-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .form-group.full-width {
+        grid-column: 1 / -1;
+      }
+
+      .form-group label {
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .form-group input,
+      .form-group select {
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s;
+        font-family: inherit;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .form-group input[type="datetime-local"] {
+        cursor: pointer;
+      }
+
+      .form-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .btn-secondary:hover {
+        background: #e5e7eb;
+      }
+
+      .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #10b981;
+      }
+
+      .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #ef4444;
+      }
+
+      .alert-info {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #3b82f6;
+      }
+
+      @media (max-width: 768px) {
+        .test-form {
+          grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+          flex-direction: column;
+        }
+
+        .btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
     </style>
   </head>
   <body>
@@ -527,6 +723,99 @@
           </div>
           <span class="live-indicator" id="liveIndicator">Live</span>
         </div>
+      </div>
+
+      <div class="test-form-container">
+        <div class="test-form-header">
+          <h2>🧪 Virtual Test Form</h2>
+          <div class="quick-fill-buttons">
+            <button type="button" class="btn-quick" id="fillStudentCheckIn">
+              Student Check-in
+            </button>
+            <button type="button" class="btn-quick" id="fillStudentCheckOut">
+              Student Check-out
+            </button>
+            <button type="button" class="btn-quick" id="fillStaffCheckIn">
+              Staff Check-in
+            </button>
+            <button type="button" class="btn-quick" id="fillStaffCheckOut">
+              Staff Check-out
+            </button>
+          </div>
+        </div>
+        <div class="school-id-info">
+          <span>ℹ️</span>
+          <span>School ID: <strong id="schoolIdDisplay">Loading...</strong> (from .env)</span>
+        </div>
+        <div id="formAlert"></div>
+        <form id="testAttendanceForm" class="test-form">
+          <div class="form-group">
+            <label for="testId">Record ID *</label>
+            <input
+              type="number"
+              id="testId"
+              name="id"
+              required
+              placeholder="e.g., 12345"
+              min="1"
+            />
+          </div>
+          <div class="form-group">
+            <label for="testUserId">User ID *</label>
+            <input
+              type="text"
+              id="testUserId"
+              name="user_id"
+              required
+              placeholder="e.g., STU001 or STAFF001"
+            />
+          </div>
+          <div class="form-group">
+            <label for="testTerminalSn">Terminal Serial Number *</label>
+            <input
+              type="text"
+              id="testTerminalSn"
+              name="terminal_sn"
+              required
+              placeholder="e.g., TERM-12345"
+            />
+          </div>
+          <div class="form-group">
+            <label for="testUserName">User Name *</label>
+            <input
+              type="text"
+              id="testUserName"
+              name="user_name"
+              required
+              placeholder="e.g., John Doe"
+            />
+          </div>
+          <div class="form-group">
+            <label for="testAttTime">Attendance Time *</label>
+            <input
+              type="datetime-local"
+              id="testAttTime"
+              name="att_time"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="testRecordType">Record Type *</label>
+            <select id="testRecordType" name="record_type" required>
+              <option value="">Select type</option>
+              <option value="Check-in">Check-in</option>
+              <option value="Check-out">Check-out</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="resetForm">
+              Reset
+            </button>
+            <button type="submit" class="btn btn-primary" id="submitForm">
+              Send Test Attendance
+            </button>
+          </div>
+        </form>
       </div>
 
       <div class="controls">
@@ -857,9 +1146,327 @@
         }
       });
 
+      // IndexedDB Setup
+      const DB_NAME = "attendanceLogs";
+      const DB_VERSION = 1;
+      const STORE_NAME = "logs";
+
+      function openDB() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              const objectStore = db.createObjectStore(STORE_NAME, {
+                keyPath: "id",
+                autoIncrement: true,
+              });
+              objectStore.createIndex("user_id", "user_id", { unique: false });
+              objectStore.createIndex("date", "date", { unique: false });
+              objectStore.createIndex("timestamp", "timestamp", {
+                unique: false,
+              });
+            }
+          };
+        });
+      }
+
+      async function storeLogInIndexedDB(logData) {
+        try {
+          const db = await openDB();
+          const transaction = db.transaction([STORE_NAME], "readwrite");
+          const store = transaction.objectStore(STORE_NAME);
+
+          const logEntry = {
+            ...logData,
+            timestamp: new Date().toISOString(),
+            date: new Date(logData.att_time).toISOString().split("T")[0],
+          };
+
+          await store.add(logEntry);
+          console.log("Log stored in IndexedDB:", logEntry);
+          return true;
+        } catch (error) {
+          console.error("Error storing log in IndexedDB:", error);
+          return false;
+        }
+      }
+
+      async function loadLogsFromIndexedDB() {
+        try {
+          const db = await openDB();
+          const transaction = db.transaction([STORE_NAME], "readonly");
+          const store = transaction.objectStore(STORE_NAME);
+          const index = store.index("timestamp");
+
+          return new Promise((resolve, reject) => {
+            const request = index.openCursor(null, "prev");
+            const logs = [];
+
+            request.onsuccess = (event) => {
+              const cursor = event.target.result;
+              if (cursor) {
+                logs.push(cursor.value);
+                cursor.continue();
+              } else {
+                resolve(logs);
+              }
+            };
+
+            request.onerror = () => reject(request.error);
+          });
+        } catch (error) {
+          console.error("Error loading logs from IndexedDB:", error);
+          return [];
+        }
+      }
+
+      async function loadIndexedDBLogs() {
+        const logs = await loadLogsFromIndexedDB();
+        if (logs.length > 0) {
+          // Group logs by user_id and date
+          const recordsMap = new Map();
+
+          logs.forEach((log) => {
+            const key = `${log.user_id}-${log.date}`;
+            if (!recordsMap.has(key)) {
+              recordsMap.set(key, {
+                student_id: log.user_id,
+                in_time: null,
+                out_time: null,
+                date: log.date,
+                attendance_type: "machine",
+                school_code: log.school_id?.toString() || "1",
+                created_at: log.timestamp,
+                updated_at: log.timestamp,
+              });
+            }
+
+            const record = recordsMap.get(key);
+            if (log.record_type === "Check-in") {
+              record.in_time = log.att_time;
+              if (new Date(log.timestamp) < new Date(record.created_at)) {
+                record.created_at = log.timestamp;
+              }
+            } else if (log.record_type === "Check-out") {
+              record.out_time = log.att_time;
+              record.updated_at = log.timestamp;
+            }
+          });
+
+          // Add records to attendanceRecords
+          recordsMap.forEach((record) => {
+            attendanceRecords.unshift(record);
+            uniqueStudentIds.add(record.student_id);
+          });
+
+          updateStats();
+          renderAttendanceList();
+        }
+      }
+
       // Initialize
       updateStats();
       renderAttendanceList();
+      loadIndexedDBLogs();
+
+      // Test Form Handling
+      const testForm = document.getElementById("testAttendanceForm");
+      const formAlert = document.getElementById("formAlert");
+      const submitBtn = document.getElementById("submitForm");
+      const resetBtn = document.getElementById("resetForm");
+
+      function showAlert(message, type = "info") {
+        formAlert.innerHTML = `
+          <div class="alert alert-${type}">
+            <span>${type === "success" ? "✓" : type === "error" ? "✗" : "ℹ"}</span>
+            <span>${message}</span>
+          </div>
+        `;
+        setTimeout(() => {
+          formAlert.innerHTML = "";
+        }, type === "error" ? 5000 : 3000);
+      }
+
+      function formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+
+      // Dummy data templates
+      const dummyData = {
+        studentCheckIn: {
+          id: 18204,
+          user_id: "2025004",
+          terminal_sn: "TERM-12345",
+          user_name: "Alice Smith",
+          record_type: "Check-in"
+        },
+        studentCheckOut: {
+          id: 18204,
+          user_id: "2025004",
+          terminal_sn: "TERM-12345",
+          user_name: "Alice Smith",
+          record_type: "Check-out"
+        },
+        staffCheckIn: {
+          id: Math.floor(Math.random() * 100000),
+          user_id: "STAFF001",
+          terminal_sn: "TERM-12345",
+          user_name: "Bob Johnson",
+          record_type: "Check-in"
+        },
+        staffCheckOut: {
+          id: Math.floor(Math.random() * 100000),
+          user_id: "STAFF001",
+          terminal_sn: "TERM-12345",
+          user_name: "Bob Johnson",
+          record_type: "Check-out"
+        }
+      };
+
+      function fillForm(data) {
+        document.getElementById("testId").value = data.id;
+        document.getElementById("testUserId").value = data.user_id;
+        document.getElementById("testTerminalSn").value = data.terminal_sn;
+        document.getElementById("testUserName").value = data.user_name;
+        document.getElementById("testRecordType").value = data.record_type;
+        const now = new Date();
+        document.getElementById("testAttTime").value = formatDateTimeLocal(now);
+      }
+
+      // Set default values
+      function setDefaultValues() {
+        fillForm(dummyData.studentCheckIn);
+      }
+
+      // Fetch school ID from server
+      let currentSchoolId = 1;
+      async function fetchSchoolId() {
+        try {
+          const response = await fetch("/api/school-id");
+          const data = await response.json();
+          if (data.school_id) {
+            currentSchoolId = data.school_id;
+            document.getElementById("schoolIdDisplay").textContent = data.school_id;
+          }
+        } catch (error) {
+          document.getElementById("schoolIdDisplay").textContent = "N/A";
+        }
+      }
+
+      // Quick fill button handlers
+      document.getElementById("fillStudentCheckIn").addEventListener("click", () => {
+        fillForm(dummyData.studentCheckIn);
+      });
+
+      document.getElementById("fillStudentCheckOut").addEventListener("click", () => {
+        fillForm(dummyData.studentCheckOut);
+      });
+
+      document.getElementById("fillStaffCheckIn").addEventListener("click", () => {
+        fillForm(dummyData.staffCheckIn);
+      });
+
+      document.getElementById("fillStaffCheckOut").addEventListener("click", () => {
+        fillForm(dummyData.staffCheckOut);
+      });
+
+      setDefaultValues();
+      fetchSchoolId();
+
+      testForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(testForm);
+        const data = {};
+        
+        // Convert form data to object
+        for (const [key, value] of formData.entries()) {
+          data[key] = value;
+        }
+
+        // Convert datetime-local to required format (YYYY-MM-DD HH:mm:ss)
+        if (data.att_time) {
+          const date = new Date(data.att_time);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const hours = String(date.getHours()).padStart(2, "0");
+          const minutes = String(date.getMinutes()).padStart(2, "0");
+          const seconds = String(date.getSeconds()).padStart(2, "0");
+          data.att_time = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Sending...";
+
+        try {
+          const response = await fetch("/api/test-attendance", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Store in IndexedDB
+            const logData = {
+              id: parseInt(data.id),
+              user_id: data.user_id,
+              terminal_sn: data.terminal_sn,
+              user_name: data.user_name,
+              att_time: data.att_time,
+              record_type: data.record_type,
+              school_id: currentSchoolId,
+            };
+            await storeLogInIndexedDB(logData);
+
+            showAlert(
+              `Success! ${result.message || "Attendance sent successfully"}`,
+              "success"
+            );
+            testForm.reset();
+            setDefaultValues();
+          } else {
+            showAlert(
+              `Error: ${result.message || "Failed to send attendance"}`,
+              "error"
+            );
+          }
+        } catch (error) {
+          showAlert(`Error: ${error.message || "Network error"}`, "error");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Send Test Attendance";
+        }
+      });
+
+      // Update dummy data IDs
+      function updateDummyDataIds() {
+        dummyData.studentCheckIn.id = Math.floor(Math.random() * 100000);
+        dummyData.studentCheckOut.id = Math.floor(Math.random() * 100000);
+        dummyData.staffCheckIn.id = Math.floor(Math.random() * 100000);
+        dummyData.staffCheckOut.id = Math.floor(Math.random() * 100000);
+      }
+
+      resetBtn.addEventListener("click", () => {
+        updateDummyDataIds();
+        testForm.reset();
+        setDefaultValues();
+        formAlert.innerHTML = "";
+      });
     </script>
   </body>
 </html>
