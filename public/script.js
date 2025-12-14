@@ -257,16 +257,31 @@ socket.on("disconnect", () => {
 
 socket.on("deviceStatus", (status) => {
   if (status.connected) {
-    deviceStatus.textContent = `Device: ${status.ip} (${
+    deviceStatus.innerHTML = `<i data-lucide="cpu"></i> Device: ${status.ip} (${
       status.type?.toUpperCase() || "TCP"
     })`;
     deviceStatus.className = "device-status connected";
   } else {
-    deviceStatus.textContent = `Device: Disconnected${
+    deviceStatus.innerHTML = `<i data-lucide="cpu"></i> Device: Disconnected${
       status.error ? " - " + status.error : ""
     }`;
     deviceStatus.className = "device-status disconnected";
   }
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+});
+
+// Request device status on connect
+socket.on("connect", () => {
+  fetch("/api/device-status")
+    .then(res => res.json())
+    .then(data => {
+      if (data.is_connected) {
+        socket.emit("requestDeviceStatus");
+      }
+    })
+    .catch(err => console.error("Error fetching device status:", err));
 });
 
 socket.on("attendanceEvent", (data) => {

@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const ZKHLIB = require("zkh-lib");
-const { MongoClient, ServerApiVersion } = require("mongodb");
 const http = require("http");
 const axios = require("axios");
 const socketIo = require("socket.io");
@@ -11,18 +10,170 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+  maxHttpBufferSize: 1e6,
+  pingTimeout: 60000,
+});
+
+// Fix MaxListenersExceededWarning
+io.engine.setMaxListeners(20);
+
+// Handle socket connections
+io.on("connection", (socket) => {
+  // Send current device status to newly connected client
+  socket.emit("deviceStatus", {
+    connected: isConnected,
+    ip: DEVICE_IP,
+    type: zkDevice?.connectionType || null,
+    error: isConnected
+      ? null
+      : DEVICE_IP
+      ? "Not connected"
+      : "Device IP not configured",
+  });
+
+  // Handle device status requests
+  socket.on("requestDeviceStatus", () => {
+    socket.emit("deviceStatus", {
+      connected: isConnected,
+      ip: DEVICE_IP,
+      type: zkDevice?.connectionType || null,
+      error: isConnected
+        ? null
+        : DEVICE_IP
+        ? "Not connected"
+        : "Device IP not configured",
+    });
+  });
+});
+
+// Periodic device status update
+setInterval(() => {
+  io.emit("deviceStatus", {
+    connected: isConnected,
+    ip: DEVICE_IP,
+    type: zkDevice?.connectionType || null,
+    error: isConnected
+      ? null
+      : DEVICE_IP
+      ? "Not connected"
+      : "Device IP not configured",
+  });
+}, 5000); // Update every 5 seconds
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
 // ZKTeco K60 Device Configuration
-// Device Network: IP 192.168.68.104, TCP Port 4370, Gateway 192.168.68.1, Subnet 255.255.255.0
-const DEVICE_IP = process.env.DEVICE_IP || "192.168.68.199";
-const DEVICE_PORT = parseInt(process.env.DEVICE_PORT || "4370");
-const DEVICE_TIMEOUT = parseInt(process.env.DEVICE_TIMEOUT || "5200");
-const DEVICE_UDP_PORT = parseInt(process.env.DEVICE_UDP_PORT || "5000");
+// Device configuration will be loaded from file or set via admin interface
+let DEVICE_IP = null;
+let DEVICE_PORT = 4370;
+let DEVICE_TIMEOUT = 5200;
+let DEVICE_UDP_PORT = 5000;
+
+// Load device config from file if exists
+const fs = require("fs");
+const path = require("path");
+const CONFIG_FILE = path.join(__dirname, "device-config.json");
+const INVALID_USERS_FILE = path.join(__dirname, "invalid-users.json");
+
+function loadDeviceConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+      DEVICE_IP = config.ip || null;
+      DEVICE_PORT = config.port || 4370;
+      DEVICE_TIMEOUT = config.timeout || 5200;
+      DEVICE_UDP_PORT = config.udpPort || 5000;
+      console.log("Device config loaded from file:", {
+        ip: DEVICE_IP,
+        port: DEVICE_PORT,
+      });
+    }
+  } catch (err) {
+    console.warn("Could not load device config:", err.message);
+  }
+}
+
+function saveDeviceConfig(config) {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    DEVICE_IP = config.ip;
+    DEVICE_PORT = config.port || 4370;
+    DEVICE_TIMEOUT = config.timeout || 5200;
+    DEVICE_UDP_PORT = config.udpPort || 5000;
+    return true;
+  } catch (err) {
+    console.error("Error saving device config:", err);
+    return false;
+  }
+}
+
+loadDeviceConfig();
+
+// Initialize invalid user IDs set before loading from file
+let invalidUserIds = new Set();
+
+// Load invalid user IDs from file (IndexedDB-like persistent storage)
+function loadInvalidUserIds() {
+  try {
+    if (fs.existsSync(INVALID_USERS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(INVALID_USERS_FILE, "utf8"));
+      invalidUserIds = new Set(data.userIds || []);
+      console.log(
+        `Loaded ${invalidUserIds.size} invalid user IDs from persistent storage`
+      );
+    } else {
+      // Create empty file if it doesn't exist
+      saveInvalidUserIds();
+    }
+  } catch (err) {
+    console.warn("Could not load invalid user IDs:", err.message);
+    // Initialize empty set if file is corrupted
+    invalidUserIds = new Set();
+  }
+}
+
+// Save invalid user IDs to file (IndexedDB-like persistent storage)
+function saveInvalidUserIds() {
+  try {
+    const data = {
+      userIds: Array.from(invalidUserIds),
+      lastUpdated: new Date().toISOString(),
+      count: invalidUserIds.size,
+    };
+    fs.writeFileSync(INVALID_USERS_FILE, JSON.stringify(data, null, 2), {
+      flag: "w",
+    });
+    return true;
+  } catch (err) {
+    console.error("Error saving invalid user IDs:", err);
+    return false;
+  }
+}
+
+// Add user ID to invalid list and persist immediately
+function addInvalidUserId(userId) {
+  if (userId && !invalidUserIds.has(userId)) {
+    invalidUserIds.add(userId);
+    const saved = saveInvalidUserIds();
+    if (saved) {
+      console.log(
+        `✓ Added invalid user ID to persistent storage: ${userId} (Total: ${invalidUserIds.size})`
+      );
+    } else {
+      console.warn(`⚠ Failed to save invalid user ID: ${userId}`);
+    }
+  }
+}
+
+// Check if user ID is invalid
+function isInvalidUserId(userId) {
+  return userId && invalidUserIds.has(userId.toString());
+}
+
+loadInvalidUserIds();
 
 // API Configuration
 const API_BASE_URL =
@@ -34,28 +185,22 @@ const TERMINAL_SN = process.env.TERMINAL_SN || "TERM-12345";
 // Device Connection Control
 const DEVICE_CONNECTED = process.env.DEVICE_CONNECTED === "true";
 
-const uri =
-  "mongodb+srv://attendances:PzCebmsIIcgv81JE@cluster0.nuouh7o.mongodb.net/attendances?retryWrites=true&w=majority&appName=Cluster0";
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
 // Connection state management
 let zkDevice = null;
 let isConnected = false;
 let isConnecting = false;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
-let dbConnected = false;
 let lastProcessedRecordTime = null;
 let pollingInterval = null;
+let syncInterval = null; // Periodic sync interval
+let syncedRecordIds = new Set(); // Track synced records to avoid duplicates
+// invalidUserIds is declared earlier before loadInvalidUserIds()
+let lastSyncTime = null; // Track last successful sync time
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY_BASE = 5000;
 const POLLING_INTERVAL = 5000; // Poll every 5 seconds for new records
+const SYNC_INTERVAL = 5000; // Sync every 5 seconds
 
 function formatDateTime(date) {
   const pad = (num) => (num < 10 ? "0" + num : num);
@@ -79,27 +224,40 @@ async function sendAttendanceToAPI(apiPayload) {
         response.data?.message || response.statusText
       }`
     );
-    return response.data;
+    return { success: true, data: response.data };
   } catch (error) {
+    const errorData = error.response?.data || {};
+    const errorMessage = errorData.message || error.message;
+
+    // Check if user not found error
+    if (
+      error.response?.status === 404 ||
+      (errorData.success === false &&
+        (errorMessage.includes("not found") ||
+          errorMessage.includes("not found in students or staffs")))
+    ) {
+      const userId = apiPayload.user_id;
+      console.warn(
+        `User ID ${userId} not found in students/staffs: ${errorMessage}`
+      );
+      return {
+        success: false,
+        error: "USER_NOT_FOUND",
+        message: errorMessage,
+        userId: userId,
+      };
+    }
+
     console.error(
       "Error sending attendance to API:",
-      error.response?.data || error.message
+      errorData || error.message
     );
-    throw error;
-  }
-}
-
-async function ensureDbConnection() {
-  if (!dbConnected) {
-    try {
-      await client.connect();
-      dbConnected = true;
-      console.log("MongoDB connected successfully");
-    } catch (err) {
-      console.error("MongoDB connection error:", err);
-      dbConnected = false;
-      throw err;
-    }
+    return {
+      success: false,
+      error: "API_ERROR",
+      message: errorMessage,
+      userId: apiPayload.user_id,
+    };
   }
 }
 
@@ -122,93 +280,116 @@ async function getUserNameFromDevice(userId) {
   return null;
 }
 
-async function processAttendanceLog(entry, source = "realtime") {
+async function processAttendanceLog(
+  entry,
+  source = "realtime",
+  skipSync = false
+) {
   try {
-    await ensureDbConnection();
-    const attendanceCollection = client.db("attendances").collection("allLog");
+    if (!entry || !entry.deviceUserId) {
+      console.error(`[${source}] Invalid entry data:`, entry);
+      return { success: false, reason: "INVALID_ENTRY" };
+    }
+
+    const userId = entry.deviceUserId.toString();
+
+    // Skip if user ID is in invalid list
+    if (isInvalidUserId(userId)) {
+      console.log(`[${source}] Skipping invalid user ID: ${userId}`);
+      return { skipped: true, reason: "INVALID_USER" };
+    }
 
     const recordDate = new Date(entry.recordTime);
     const formattedDate = recordDate.toISOString().split("T")[0];
     const formattedTime = formatDateTime(recordDate);
+
+    // Create unique record identifier
+    const recordKey = `${userId}-${formattedDate}-${formattedTime}`;
+
+    // Skip if already synced
+    if (syncedRecordIds.has(recordKey) && !skipSync) {
+      return { skipped: true, reason: "ALREADY_SYNCED" };
+    }
 
     // Update last processed record time
     if (recordDate > (lastProcessedRecordTime || new Date(0))) {
       lastProcessedRecordTime = recordDate;
     }
 
-    const existingRecord = await attendanceCollection.findOne({
-      student_id: entry.deviceUserId,
-      date: formattedDate,
-    });
-
-    // Determine record type: Check-in if new record, Check-out if updating existing
-    const recordType = !existingRecord ? "Check-in" : "Check-out";
-
     // Get user name from device or use fallback
     const userName =
       entry.userName ||
       (await getUserNameFromDevice(entry.deviceUserId)) ||
-      entry.deviceUserId;
+      userId;
 
     // Generate unique ID (using timestamp + user ID hash)
-    const recordId = Math.abs(
-      Date.now().toString().slice(-8) + entry.deviceUserId.toString().slice(-4)
-    ).slice(0, 10);
+    const timestampStr = Date.now().toString().slice(-8);
+    const userIdStr = userId.slice(-4);
+    const recordId = (timestampStr + userIdStr).slice(0, 10);
 
     // Prepare API payload according to doc.md structure
     const apiPayload = {
-      id: parseInt(recordId),
-      user_id: entry.deviceUserId.toString(),
+      id: parseInt(recordId) || Math.floor(Math.random() * 1000000000),
+      user_id: userId,
       terminal_sn: TERMINAL_SN,
       user_name: userName,
       att_time: formattedTime,
-      record_type: recordType,
+      record_type: "Check-in",
       school_id: SCHOOL_ID,
     };
 
-    let apiData;
-    if (!existingRecord) {
-      apiData = {
-        student_id: entry.deviceUserId,
-        in_time: formattedTime,
-        out_time: formattedTime,
-        machine_no: null,
-        date: formattedDate,
-        attendance_type: "machine",
-        school_code: "10106",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      await attendanceCollection.insertOne(apiData);
-      console.log(
-        `[${source}] New attendance record: Student ${entry.deviceUserId} - ${formattedTime}`
-      );
-    } else {
-      apiData = {
-        ...existingRecord,
-        out_time: formattedTime,
-        updated_at: new Date().toISOString(),
-      };
-      await attendanceCollection.updateOne(
-        { student_id: entry.deviceUserId, date: formattedDate },
-        {
-          $set: {
-            out_time: formattedTime,
-            updated_at: new Date().toISOString(),
-          },
-        }
-      );
-      console.log(
-        `[${source}] Updated attendance record: Student ${entry.deviceUserId} - ${formattedTime}`
-      );
-    }
+    // Prepare data for frontend
+    const apiData = {
+      student_id: userId,
+      in_time: formattedTime,
+      out_time: formattedTime,
+      machine_no: null,
+      date: formattedDate,
+      attendance_type: "machine",
+      school_code: "10106",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log(
+      `[${source}] Processing attendance record: User ${userId} - ${formattedTime}`
+    );
 
     // Send to new API endpoint
-    await sendAttendanceToAPI(apiPayload);
-    io.emit("attendanceEvent", apiData);
+    console.log(`[${source}] Sending to API:`, {
+      user_id: userId,
+      att_time: formattedTime,
+      school_id: SCHOOL_ID,
+    });
+
+    const result = await sendAttendanceToAPI(apiPayload);
+
+    if (result && result.success) {
+      syncedRecordIds.add(recordKey);
+      lastSyncTime = new Date();
+      io.emit("attendanceEvent", apiData);
+      console.log(
+        `[${source}] ✓ Successfully synced record for user ${userId}`
+      );
+      return { success: true };
+    } else if (result && result.error === "USER_NOT_FOUND") {
+      // Add to invalid users list (persisted in IndexedDB-like storage)
+      addInvalidUserId(userId);
+      console.log(
+        `[${source}] ✗ User ${userId} not found - added to invalid users list (will skip in future)`
+      );
+      return { success: false, reason: "USER_NOT_FOUND", userId: userId };
+    } else {
+      // Other API errors - will retry later
+      const errorMsg = result?.message || "Unknown error";
+      console.error(
+        `[${source}] ✗ Failed to sync record ${recordKey}: ${errorMsg}`
+      );
+      return { success: false, reason: "API_ERROR", message: errorMsg };
+    }
   } catch (err) {
     console.error("Error processing attendance log:", err);
-    dbConnected = false;
+    return { success: false, reason: "EXCEPTION", error: err.message };
   }
 }
 
@@ -257,6 +438,8 @@ function handleRealTimeLog(data) {
 }
 
 async function checkNetworkConnectivity() {
+  if (!DEVICE_IP) return false;
+
   return new Promise((resolve) => {
     const net = require("net");
     const socket = new net.Socket();
@@ -279,8 +462,112 @@ async function checkNetworkConnectivity() {
   });
 }
 
+async function syncOfflineData() {
+  if (!isConnected || !zkDevice) {
+    return;
+  }
+
+  try {
+    console.log("\n=== Syncing offline data ===");
+    const allLogs = await zkDevice.getAttendances();
+
+    if (!allLogs?.data || allLogs.data.length === 0) {
+      console.log("No records found on device");
+      return { synced: 0, skipped: 0, invalid: 0 };
+    }
+
+    // Filter records that haven't been synced and are not from invalid users
+    const unsyncedRecords = allLogs.data.filter((record) => {
+      if (!record || !record.deviceUserId) {
+        return false;
+      }
+
+      const userId = record.deviceUserId.toString();
+
+      // Skip invalid user IDs (from persistent storage)
+      if (isInvalidUserId(userId)) {
+        return false;
+      }
+
+      const recordDate = new Date(record.recordTime);
+      if (isNaN(recordDate.getTime())) {
+        return false; // Skip invalid dates
+      }
+
+      const formattedDate = recordDate.toISOString().split("T")[0];
+      const formattedTime = formatDateTime(recordDate);
+      const recordKey = `${userId}-${formattedDate}-${formattedTime}`;
+      return !syncedRecordIds.has(recordKey);
+    });
+
+    if (unsyncedRecords.length > 0) {
+      console.log(
+        `Found ${unsyncedRecords.length} unsynced records, syncing...`
+      );
+
+      // Sort by time to process in chronological order
+      const sortedRecords = unsyncedRecords.sort(
+        (a, b) => new Date(a.recordTime) - new Date(b.recordTime)
+      );
+
+      let syncedCount = 0;
+      let skippedCount = 0;
+      let invalidCount = 0;
+
+      for (const record of sortedRecords) {
+        const entry = {
+          deviceUserId: record.deviceUserId,
+          recordTime: record.recordTime,
+          deviceId: record.ip || null,
+          userName: record.userName || record.name || null,
+        };
+
+        const result = await processAttendanceLog(entry, "offline-sync");
+
+        if (result?.success) {
+          syncedCount++;
+        } else if (result?.reason === "USER_NOT_FOUND") {
+          invalidCount++;
+        } else if (result?.skipped) {
+          skippedCount++;
+        }
+
+        // Small delay to avoid overwhelming the API
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      console.log(
+        `✓ Sync complete: ${syncedCount} synced, ${skippedCount} skipped, ${invalidCount} invalid users`
+      );
+      return {
+        synced: syncedCount,
+        skipped: skippedCount,
+        invalid: invalidCount,
+      };
+    } else {
+      console.log("All records are already synced or from invalid users");
+      return { synced: 0, skipped: 0, invalid: 0 };
+    }
+  } catch (err) {
+    console.error("Error syncing offline data:", err.message);
+    return { synced: 0, skipped: 0, invalid: 0, error: err.message };
+  }
+}
+
 async function connectToDevice() {
   if (isConnecting || isConnected) {
+    return;
+  }
+
+  if (!DEVICE_IP) {
+    console.warn(
+      "Device IP not configured. Please configure device in admin interface."
+    );
+    io.emit("deviceStatus", {
+      connected: false,
+      ip: null,
+      error: "Device IP not configured",
+    });
     return;
   }
 
@@ -297,7 +584,6 @@ async function connectToDevice() {
       console.warn(
         `Warning: Cannot reach device at ${DEVICE_IP}:${DEVICE_PORT}. Please verify network connectivity.`
       );
-      console.warn(`Device network: 192.168.68.104/24, Gateway: 192.168.68.1`);
     }
 
     zkDevice = new ZKHLIB(
@@ -310,12 +596,24 @@ async function connectToDevice() {
     const errorHandler = (err) => {
       console.error("Device connection error:", err);
       isConnected = false;
+      isConnecting = false;
+      io.emit("deviceStatus", {
+        connected: false,
+        ip: DEVICE_IP,
+        error: err.message || "Connection error",
+      });
       scheduleReconnect();
     };
 
     const closeHandler = () => {
       console.log("Device connection closed");
       isConnected = false;
+      isConnecting = false;
+      io.emit("deviceStatus", {
+        connected: false,
+        ip: DEVICE_IP,
+        error: "Connection closed",
+      });
       scheduleReconnect();
     };
 
@@ -373,6 +671,12 @@ async function connectToDevice() {
             JSON.stringify(records[0], null, 2)
           );
         }
+
+        // Sync offline data when device comes back online
+        await syncOfflineData();
+
+        // Start periodic sync for unsynced data
+        startPeriodicSync();
 
         // Start polling for new records
         startPollingForNewRecords();
@@ -445,9 +749,24 @@ async function startPollingForNewRecords() {
         return;
       }
 
-      // Filter for new records (after last processed time)
+      // Filter for new records (after last processed time) and exclude invalid users
       const newRecords = logs.data.filter((record) => {
+        if (!record || !record.deviceUserId) {
+          return false;
+        }
+
+        const userId = record.deviceUserId.toString();
+
+        // Skip invalid user IDs (from persistent storage)
+        if (isInvalidUserId(userId)) {
+          return false;
+        }
+
         const recordTime = new Date(record.recordTime);
+        if (isNaN(recordTime.getTime())) {
+          return false; // Skip invalid dates
+        }
+
         return !lastProcessedRecordTime || recordTime > lastProcessedRecordTime;
       });
 
@@ -473,10 +792,43 @@ async function startPollingForNewRecords() {
   }, POLLING_INTERVAL);
 }
 
+// Start periodic sync to ensure no data is left unsynced
+function startPeriodicSync() {
+  if (syncInterval) {
+    clearInterval(syncInterval);
+  }
+
+  console.log(
+    `Starting periodic sync (every ${SYNC_INTERVAL / 1000} seconds)...`
+  );
+
+  syncInterval = setInterval(async () => {
+    if (!isConnected || !zkDevice) {
+      return;
+    }
+
+    try {
+      const result = await syncOfflineData();
+      if (result && (result.synced > 0 || result.invalid > 0)) {
+        console.log(
+          `🔄 Periodic sync: ${result.synced} synced, ${result.invalid} invalid users`
+        );
+      }
+    } catch (err) {
+      console.error("Error in periodic sync:", err.message);
+    }
+  }, SYNC_INTERVAL);
+}
+
 async function disconnectFromDevice() {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
   }
 
   if (zkDevice && isConnected) {
@@ -498,25 +850,21 @@ async function disconnectFromDevice() {
 process.on("SIGINT", async () => {
   console.log("\nShutting down...");
   await disconnectFromDevice();
-  if (dbConnected) {
-    await client.close();
-    dbConnected = false;
-  }
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("\nShutting down...");
   await disconnectFromDevice();
-  if (dbConnected) {
-    await client.close();
-    dbConnected = false;
-  }
   process.exit(0);
 });
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/public/index.html");
+});
+
+app.get("/admin", (req, res) => {
+  res.sendFile(__dirname + "/public/admin.html");
 });
 
 // Get school ID endpoint
@@ -529,8 +877,130 @@ app.get("/api/school-id", (req, res) => {
 // Get device connection status endpoint
 app.get("/api/device-status", (req, res) => {
   res.json({
-    device_connected: DEVICE_CONNECTED,
+    device_connected: DEVICE_CONNECTED && isConnected,
+    is_connected: isConnected,
+    is_connecting: isConnecting,
+    device_ip: DEVICE_IP,
+    device_configured: !!DEVICE_IP,
   });
+});
+
+// Get device configuration endpoint
+app.get("/api/device-config", (req, res) => {
+  res.json({
+    ip: DEVICE_IP,
+    port: DEVICE_PORT,
+    timeout: DEVICE_TIMEOUT,
+    udpPort: DEVICE_UDP_PORT,
+    is_connected: isConnected,
+  });
+});
+
+// Update device configuration endpoint
+app.post("/api/device-config", (req, res) => {
+  try {
+    const { ip, port, timeout, udpPort } = req.body;
+
+    if (!ip) {
+      return res.status(400).json({
+        success: false,
+        message: "Device IP is required",
+      });
+    }
+
+    const config = {
+      ip: ip.trim(),
+      port: parseInt(port) || 4370,
+      timeout: parseInt(timeout) || 5200,
+      udpPort: parseInt(udpPort) || 5000,
+    };
+
+    if (saveDeviceConfig(config)) {
+      // Disconnect current device if connected
+      if (isConnected) {
+        disconnectFromDevice().then(() => {
+          // Reconnect with new config after a short delay
+          setTimeout(() => {
+            connectToDevice();
+          }, 1000);
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Device configuration updated successfully",
+        config: config,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Failed to save device configuration",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating device config:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update device configuration",
+    });
+  }
+});
+
+// Get all device records grouped by school
+app.get("/api/device-records", async (req, res) => {
+  try {
+    if (!isConnected || !zkDevice) {
+      return res.status(400).json({
+        success: false,
+        message: "Device not connected",
+      });
+    }
+
+    const logs = await zkDevice.getAttendances();
+
+    if (!logs?.data || logs.data.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        grouped: {},
+      });
+    }
+
+    // Group records by school (we'll need to determine school from user_id or other means)
+    // For now, return all records with a school field if available
+    const records = logs.data.map((record) => ({
+      userSn: record.userSn,
+      deviceUserId: record.deviceUserId,
+      recordTime: record.recordTime,
+      ip: record.ip,
+      userName: record.userName || record.name || null,
+      // You may need to add school_id mapping logic here
+      school_id: SCHOOL_ID, // Default to current school
+    }));
+
+    // Group by school_id (if you have multiple schools)
+    const grouped = records.reduce((acc, record) => {
+      const schoolId = record.school_id || "unknown";
+      if (!acc[schoolId]) {
+        acc[schoolId] = [];
+      }
+      acc[schoolId].push(record);
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: records,
+      grouped: grouped,
+      total: records.length,
+    });
+  } catch (error) {
+    console.error("Error fetching device records:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch device records",
+    });
+  }
 });
 
 // Test endpoint for virtual form submissions
@@ -619,7 +1089,9 @@ app.post("/api/test-attendance", async (req, res) => {
 server.listen(port, async () => {
   console.log(`Server is listening on http://localhost:${port}`);
   console.log(
-    `Device Configuration: ${DEVICE_IP}:${DEVICE_PORT} (Timeout: ${DEVICE_TIMEOUT}ms, UDP: ${DEVICE_UDP_PORT})`
+    `Device Configuration: ${
+      DEVICE_IP || "Not configured"
+    }:${DEVICE_PORT} (Timeout: ${DEVICE_TIMEOUT}ms, UDP: ${DEVICE_UDP_PORT})`
   );
   console.log(
     `Device Connection: ${
@@ -627,16 +1099,19 @@ server.listen(port, async () => {
     }`
   );
 
-  if (DEVICE_CONNECTED) {
+  if (DEVICE_CONNECTED && DEVICE_IP) {
     await connectToDevice();
   } else {
     console.log(
-      "Running in virtual testing mode. Use the test form to simulate attendance."
+      DEVICE_IP
+        ? "Running in virtual testing mode. Use the test form to simulate attendance."
+        : "Device IP not configured. Please configure device in admin interface."
     );
     io.emit("deviceStatus", {
       connected: false,
       ip: DEVICE_IP,
       mode: "virtual",
+      error: DEVICE_IP ? null : "Device IP not configured",
     });
   }
 });

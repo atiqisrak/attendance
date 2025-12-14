@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Configuration - Admin</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      
+      .admin-section {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+      }
+      
+      .admin-section h2 {
+        color: var(--text-primary);
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary);
+        text-decoration: none;
+        margin-bottom: 24px;
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        transition: var(--transition);
+      }
+      
+      .back-link:hover {
+        background: var(--bg-tertiary);
+      }
+      
+      .device-records-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+      
+      .device-records-table th,
+      .device-records-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .device-records-table th {
+        background: var(--bg-tertiary);
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+      
+      .school-filter {
+        margin-bottom: 20px;
+      }
+      
+      .school-filter select {
+        padding: 10px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        min-width: 200px;
+      }
+      
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      /* Mobile Responsive Styles */
+      @media (max-width: 768px) {
+        .admin-container {
+          padding: 12px;
+        }
+
+        .admin-section {
+          padding: 20px;
+          margin-bottom: 16px;
+        }
+
+        .admin-section h2 {
+          font-size: 18px;
+          margin-bottom: 16px;
+        }
+
+        .back-link {
+          padding: 6px 12px;
+          font-size: 13px;
+          margin-bottom: 16px;
+        }
+
+        .test-form {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .form-actions {
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .form-actions .btn {
+          width: 100%;
+        }
+
+        .device-records-table {
+          font-size: 12px;
+        }
+
+        .device-records-table th,
+        .device-records-table td {
+          padding: 8px;
+          font-size: 11px;
+        }
+
+        .school-filter {
+          margin-bottom: 16px;
+        }
+
+        .school-filter select {
+          width: 100%;
+          font-size: 13px;
+          padding: 8px 12px;
+        }
+
+        #connectionStatusInfo {
+          font-size: 12px;
+          padding: 12px;
+          margin-top: 16px;
+        }
+
+        #recordsLoading,
+        #recordsEmpty {
+          padding: 30px 16px;
+        }
+
+        #recordsLoading i[data-lucide],
+        #recordsEmpty i[data-lucide] {
+          width: 40px;
+          height: 40px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .admin-container {
+          padding: 8px;
+        }
+
+        .admin-section {
+          padding: 16px;
+          margin-bottom: 12px;
+        }
+
+        .admin-section h2 {
+          font-size: 16px;
+          margin-bottom: 12px;
+        }
+
+        .back-link {
+          padding: 5px 10px;
+          font-size: 12px;
+          margin-bottom: 12px;
+        }
+
+        .test-form {
+          gap: 12px;
+        }
+
+        .form-group label {
+          font-size: 11px;
+        }
+
+        .form-group input,
+        .form-group select {
+          font-size: 13px;
+          padding: 8px 10px;
+        }
+
+        .device-records-table {
+          font-size: 11px;
+          display: block;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .device-records-table thead,
+        .device-records-table tbody,
+        .device-records-table tr {
+          display: block;
+        }
+
+        .device-records-table thead {
+          display: none;
+        }
+
+        .device-records-table tr {
+          margin-bottom: 12px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-sm);
+          padding: 8px;
+          background: var(--bg-secondary);
+        }
+
+        .device-records-table td {
+          display: block;
+          text-align: right;
+          padding: 6px 8px;
+          border-bottom: 1px solid var(--border);
+          position: relative;
+          padding-left: 40%;
+        }
+
+        .device-records-table td:last-child {
+          border-bottom: none;
+        }
+
+        .device-records-table td:before {
+          content: attr(data-label);
+          position: absolute;
+          left: 8px;
+          width: 35%;
+          text-align: left;
+          font-weight: 600;
+          color: var(--text-secondary);
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .school-filter select {
+          font-size: 12px;
+          padding: 8px 10px;
+        }
+
+        #connectionStatusInfo {
+          font-size: 11px;
+          padding: 10px;
+        }
+
+        #recordsLoading,
+        #recordsEmpty {
+          padding: 24px 12px;
+        }
+
+        #recordsLoading p,
+        #recordsEmpty p {
+          font-size: 12px;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .admin-container {
+          padding: 6px;
+        }
+
+        .admin-section {
+          padding: 12px;
+        }
+
+        .admin-section h2 {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <a href="/" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Dashboard
+      </a>
+
+      <div class="admin-section">
+        <h2>
+          <i data-lucide="settings"></i>
+          Device Configuration
+        </h2>
+        <div id="configAlert"></div>
+        <form id="deviceConfigForm" class="test-form">
+          <div class="form-group">
+            <label for="deviceIp">
+              <i data-lucide="network"></i>
+              Device IP Address *
+            </label>
+            <input
+              type="text"
+              id="deviceIp"
+              name="ip"
+              required
+              placeholder="e.g., 192.168.68.199"
+              pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+            />
+          </div>
+          <div class="form-group">
+            <label for="devicePort">
+              <i data-lucide="server"></i>
+              Device Port
+            </label>
+            <input
+              type="number"
+              id="devicePort"
+              name="port"
+              value="4370"
+              min="1"
+              max="65535"
+            />
+          </div>
+          <div class="form-group">
+            <label for="deviceTimeout">
+              <i data-lucide="clock"></i>
+              Timeout (ms)
+            </label>
+            <input
+              type="number"
+              id="deviceTimeout"
+              name="timeout"
+              value="5200"
+              min="1000"
+            />
+          </div>
+          <div class="form-group">
+            <label for="deviceUdpPort">
+              <i data-lucide="wifi"></i>
+              UDP Port
+            </label>
+            <input
+              type="number"
+              id="deviceUdpPort"
+              name="udpPort"
+              value="5000"
+              min="1"
+              max="65535"
+            />
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="loadConfig">
+              <i data-lucide="download"></i>
+              Load Current Config
+            </button>
+            <button type="submit" class="btn btn-primary" id="saveConfig">
+              <i data-lucide="save"></i>
+              Save Configuration
+            </button>
+          </div>
+        </form>
+        <div id="connectionStatusInfo" style="margin-top: 20px; padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-sm);">
+          <strong>Connection Status:</strong> <span id="connectionStatusText">Loading...</span>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h2>
+          <i data-lucide="database"></i>
+          Device Records by School
+        </h2>
+        <div class="school-filter">
+          <label for="schoolFilter" style="margin-right: 10px;">Filter by School:</label>
+          <select id="schoolFilter">
+            <option value="all">All Schools</option>
+          </select>
+        </div>
+        <div id="recordsLoading" style="text-align: center; padding: 40px;">
+          <i data-lucide="loader-2" style="width: 32px; height: 32px; animation: spin 1s linear infinite;"></i>
+          <p>Loading device records...</p>
+        </div>
+        <div id="recordsContainer" style="display: none;">
+          <table class="device-records-table">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>User Name</th>
+                <th>Record Time</th>
+                <th>School ID</th>
+                <th>Device IP</th>
+              </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+            </tbody>
+          </table>
+        </div>
+        <div id="recordsEmpty" style="display: none; text-align: center; padding: 40px;">
+          <i data-lucide="file-x" style="width: 48px; height: 48px; opacity: 0.3;"></i>
+          <p>No records found</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const socket = io();
+      const configForm = document.getElementById("deviceConfigForm");
+      const configAlert = document.getElementById("configAlert");
+      const saveBtn = document.getElementById("saveConfig");
+      const loadBtn = document.getElementById("loadConfig");
+      const connectionStatusText = document.getElementById("connectionStatusText");
+      const schoolFilter = document.getElementById("schoolFilter");
+      const recordsTableBody = document.getElementById("recordsTableBody");
+      const recordsLoading = document.getElementById("recordsLoading");
+      const recordsContainer = document.getElementById("recordsContainer");
+      const recordsEmpty = document.getElementById("recordsEmpty");
+
+      let allRecords = [];
+      let groupedRecords = {};
+
+      function showAlert(message, type = "info") {
+        const icons = {
+          success: '<i data-lucide="check-circle"></i>',
+          error: '<i data-lucide="x-circle"></i>',
+          info: '<i data-lucide="info"></i>'
+        };
+        
+        configAlert.innerHTML = `
+          <div class="alert alert-${type}">
+            ${icons[type] || icons.info}
+            <span>${message}</span>
+          </div>
+        `;
+        
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+        
+        setTimeout(() => {
+          configAlert.innerHTML = "";
+        }, type === "error" ? 5000 : 3000);
+      }
+
+      function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      async function loadDeviceConfig() {
+        try {
+          const response = await fetch("/api/device-config");
+          const data = await response.json();
+          
+          if (data.ip) {
+            document.getElementById("deviceIp").value = data.ip;
+            document.getElementById("devicePort").value = data.port || 4370;
+            document.getElementById("deviceTimeout").value = data.timeout || 5200;
+            document.getElementById("deviceUdpPort").value = data.udpPort || 5000;
+          }
+          
+          updateConnectionStatus(data.is_connected);
+        } catch (error) {
+          console.error("Error loading config:", error);
+        }
+      }
+
+      function updateConnectionStatus(isConnected) {
+        connectionStatusText.textContent = isConnected 
+          ? "Connected" 
+          : "Disconnected";
+        connectionStatusText.style.color = isConnected 
+          ? "var(--success)" 
+          : "var(--error)";
+      }
+
+      configForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(configForm);
+        const config = {
+          ip: formData.get("ip"),
+          port: parseInt(formData.get("port")) || 4370,
+          timeout: parseInt(formData.get("timeout")) || 5200,
+          udpPort: parseInt(formData.get("udpPort")) || 5000,
+        };
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i data-lucide="loader-2"></i> Saving...';
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+
+        try {
+          const response = await fetch("/api/device-config", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(config),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            showAlert(result.message, "success");
+            setTimeout(() => {
+              loadDeviceConfig();
+            }, 1000);
+          } else {
+            showAlert(result.message || "Failed to save configuration", "error");
+          }
+        } catch (error) {
+          showAlert(`Error: ${error.message}`, "error");
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i data-lucide="save"></i> Save Configuration';
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+        }
+      });
+
+      loadBtn.addEventListener("click", loadDeviceConfig);
+
+      async function loadDeviceRecords() {
+        try {
+          recordsLoading.style.display = "block";
+          recordsContainer.style.display = "none";
+          recordsEmpty.style.display = "none";
+
+          const response = await fetch("/api/device-records");
+          const result = await response.json();
+
+          if (result.success) {
+            allRecords = result.data || [];
+            groupedRecords = result.grouped || {};
+
+            // Populate school filter
+            const schoolIds = Object.keys(groupedRecords);
+            schoolFilter.innerHTML = '<option value="all">All Schools</option>';
+            schoolIds.forEach(schoolId => {
+              const option = document.createElement("option");
+              option.value = schoolId;
+              option.textContent = `School ${schoolId} (${groupedRecords[schoolId].length} records)`;
+              schoolFilter.appendChild(option);
+            });
+
+            renderRecords();
+          } else {
+            showAlert(result.message || "Failed to load records", "error");
+            recordsEmpty.style.display = "block";
+          }
+        } catch (error) {
+          console.error("Error loading records:", error);
+          showAlert("Failed to load device records", "error");
+          recordsEmpty.style.display = "block";
+        } finally {
+          recordsLoading.style.display = "none";
+        }
+      }
+
+      function renderRecords() {
+        const selectedSchool = schoolFilter.value;
+        let recordsToShow = allRecords;
+
+        if (selectedSchool !== "all" && groupedRecords[selectedSchool]) {
+          recordsToShow = groupedRecords[selectedSchool];
+        }
+
+        if (recordsToShow.length === 0) {
+          recordsContainer.style.display = "none";
+          recordsEmpty.style.display = "block";
+          return;
+        }
+
+        recordsContainer.style.display = "block";
+        recordsEmpty.style.display = "none";
+
+        const isMobile = window.innerWidth <= 480;
+        recordsTableBody.innerHTML = recordsToShow
+          .sort((a, b) => new Date(b.recordTime) - new Date(a.recordTime))
+          .map(record => {
+            if (isMobile) {
+              return `
+                <tr>
+                  <td data-label="User ID">${record.deviceUserId || "N/A"}</td>
+                  <td data-label="User Name">${record.userName || "N/A"}</td>
+                  <td data-label="Record Time">${formatDateTime(record.recordTime)}</td>
+                  <td data-label="School ID">${record.school_id || "N/A"}</td>
+                  <td data-label="Device IP">${record.ip || "N/A"}</td>
+                </tr>
+              `;
+            }
+            return `
+              <tr>
+                <td>${record.deviceUserId || "N/A"}</td>
+                <td>${record.userName || "N/A"}</td>
+                <td>${formatDateTime(record.recordTime)}</td>
+                <td>${record.school_id || "N/A"}</td>
+                <td>${record.ip || "N/A"}</td>
+              </tr>
+            `;
+          }).join("");
+      }
+
+      schoolFilter.addEventListener("change", renderRecords);
+
+      // Re-render on window resize to update mobile table layout
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (allRecords.length > 0) {
+            renderRecords();
+          }
+        }, 250);
+      });
+
+      socket.on("deviceStatus", (status) => {
+        updateConnectionStatus(status.connected);
+      });
+
+      socket.on("connect", () => {
+        loadDeviceConfig();
+        loadDeviceRecords();
+      });
+
+      // Initialize
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+      
+      loadDeviceConfig();
+      loadDeviceRecords();
+      
+      // Refresh records every 30 seconds
+      setInterval(loadDeviceRecords, 30000);
+    </script>
+  </body>
+</html>
+

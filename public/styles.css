@@ -168,6 +168,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 * {
@@ -475,6 +477,9 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 36px; /* Minimum touch target size */
 }
 
 .btn-quick:hover {
@@ -557,6 +562,9 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 44px; /* Minimum touch target size */
 }
 
 .btn-primary {
@@ -690,6 +698,9 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 36px; /* Minimum touch target size */
 }
 
 .filter-btn:hover {
@@ -954,35 +965,102 @@ body {
 }
 
 /* Responsive */
+/* Tablet and below */
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 8px;
+  }
+
+  .header {
+    padding: 20px 24px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile and small tablets */
 @media (max-width: 768px) {
   body {
-    padding: 16px;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
   }
 
   .header {
     flex-direction: column;
-    text-align: center;
-    padding: 20px;
+    text-align: left;
+    padding: 16px;
+    gap: 12px;
     position: relative;
   }
 
   .theme-toggle {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
   }
 
-  .header-left,
+  .header-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-right: 0;
+  }
+
   .header-right {
     width: 100%;
-    justify-content: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     margin-right: 0;
+  }
+
+  .header h1 {
+    font-size: 20px;
+    width: 100%;
+  }
+
+  .status-badge {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+
+  .device-status {
+    font-size: 11px;
+    padding: 5px 10px;
+    width: 100%;
+  }
+
+  .live-indicator {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .btn-secondary {
+    width: 100%;
   }
 
   .data-header,
   .data-item {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .data-header {
@@ -990,51 +1068,311 @@ body {
   }
 
   .data-item {
-    padding: 16px;
+    padding: 12px;
     border-left: 3px solid var(--primary);
+    margin-bottom: 12px;
+  }
+
+  .student-id,
+  .time,
+  .date-badge {
+    font-size: 13px;
+  }
+
+  .stat-card {
+    padding: 16px;
   }
 
   .stat-card .value {
-    font-size: 28px;
+    font-size: 24px;
+  }
+
+  .stat-card h3 {
+    font-size: 11px;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .data-container {
     max-height: 500px;
-    padding: 16px;
+    padding: 12px;
+    border-radius: var(--radius-md);
   }
 
   .controls {
     flex-direction: column;
+    padding: 16px;
+    gap: 12px;
   }
 
   .search-box {
     width: 100%;
   }
 
+  .search-box input {
+    font-size: 14px;
+    padding: 10px 12px 10px 36px;
+  }
+
+  .filter-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    flex: 1;
+    min-width: calc(33.333% - 6px);
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .test-form-container {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .test-form-header {
+    padding-bottom: 16px;
+    gap: 12px;
+  }
+
+  .test-form-header h2 {
+    font-size: 18px;
+  }
+
   .test-form {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .form-group {
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 14px;
+    padding: 10px 12px;
   }
 
   .form-actions {
     flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
   }
 
-  .btn {
+  .quick-fill-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-quick {
     width: 100%;
     justify-content: center;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  .school-id-info {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .alert {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .empty-state {
+    padding: 40px 16px;
+  }
+
+  .empty-state p {
+    font-size: 14px;
   }
 }
 
+/* Small mobile devices */
 @media (max-width: 480px) {
+  body {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .header {
+    padding: 12px;
+    gap: 10px;
+  }
+
   .header h1 {
+    font-size: 18px;
+    gap: 8px;
+  }
+
+  .header h1 i[data-lucide] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .theme-toggle {
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .device-status {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .live-indicator {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card .value {
     font-size: 20px;
   }
 
-  .stats {
-    grid-template-columns: 1fr;
+  .stat-card .sub-value {
+    font-size: 11px;
+  }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .data-container {
+    padding: 8px;
+    max-height: 400px;
+  }
+
+  .data-item {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .student-id {
+    font-size: 12px;
+  }
+
+  .time-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .date-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .controls {
+    padding: 12px;
+  }
+
+  .search-box input {
+    font-size: 13px;
+    padding: 8px 10px 8px 32px;
+  }
+
+  .filter-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    min-width: calc(33.333% - 4px);
   }
 
   .test-form-container {
-    padding: 20px;
+    padding: 12px;
+  }
+
+  .test-form-header {
+    padding-bottom: 12px;
+  }
+
+  .test-form-header h2 {
+    font-size: 16px;
+  }
+
+  .test-form {
+    gap: 12px;
+  }
+
+  .form-group label {
+    font-size: 11px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .btn-quick {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .school-id-info {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .alert {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 360px) {
+  body {
+    padding: 6px;
+  }
+
+  .header {
+    padding: 10px;
+  }
+
+  .header h1 {
+    font-size: 16px;
+  }
+
+  .stat-card {
+    padding: 10px;
+  }
+
+  .stat-card .value {
+    font-size: 18px;
+  }
+
+  .data-container {
+    padding: 6px;
+  }
+
+  .test-form-container {
+    padding: 10px;
   }
 }
